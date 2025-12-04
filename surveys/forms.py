@@ -7,16 +7,18 @@ from .models import Survey, Question, Choice, Response, Answer
 class SurveyForm(forms.ModelForm):
     class Meta:
         model = Survey
-        fields = ['title', 'description', 'is_active', 'expires_at']
+        fields = ['title', 'description', 'header_image', 'is_active', 'expires_at']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập tiêu đề khảo sát'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Nhập mô tả khảo sát'}),
+            'header_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'expires_at': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
         }
         labels = {
             'title': 'Tiêu đề',
             'description': 'Mô tả',
+            'header_image': 'Ảnh tiêu đề (tùy chọn)',
             'is_active': 'Đang hoạt động',
             'expires_at': 'Hết hạn vào',
         }

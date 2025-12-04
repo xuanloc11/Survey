@@ -85,20 +85,6 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-
-# PostgreSQL (Uncomment để sử dụng PostgreSQL)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'survey_db',           # Tên database
-#         'USER': 'postgres',            # Tên user PostgreSQL
-#         'PASSWORD': 'your_password',   # Mật khẩu PostgreSQL
-#         'HOST': 'localhost',           # Host (hoặc '127.0.0.1')
-#         'PORT': '5432',                # Port (mặc định 5432)
-#     }
-# }
-
-
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -138,6 +124,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
+
+# Media files (uploaded images)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

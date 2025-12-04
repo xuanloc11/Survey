@@ -6,6 +6,12 @@ from django.utils import timezone
 class Survey(models.Model):
     title = models.CharField(max_length=200, verbose_name="Tiêu đề")
     description = models.TextField(blank=True, verbose_name="Mô tả")
+    header_image = models.ImageField(
+        upload_to='survey_headers/',
+        blank=True,
+        null=True,
+        verbose_name="Ảnh tiêu đề"
+    )
     creator = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Người tạo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ngày cập nhật")

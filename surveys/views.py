@@ -26,7 +26,7 @@ def register_view(request):
     else:
         form = UserRegisterForm()
     
-    return render(request, 'surveys/register.html', {'form': form})
+    return render(request, 'auth/register.html', {'form': form})
 
 
 def login_view(request):
@@ -48,7 +48,7 @@ def login_view(request):
         else:
             messages.error(request, 'Tên đăng nhập hoặc mật khẩu không đúng!')
     
-    return render(request, 'surveys/login.html')
+    return render(request, 'auth/login.html')
 
 
 def logout_view(request):
@@ -59,24 +59,48 @@ def logout_view(request):
 
 
 def home(request):
-    """Trang chủ - hiển thị danh sách khảo sát"""
+    """Trang chủ - hiển thị danh sách khảo sát công khai"""
     surveys = Survey.objects.filter(is_active=True).annotate(
         response_count=Count('responses')
     ).order_by('-created_at')
-    
-    # Lọc theo tìm kiếm
+
+    # Lọc theo từ khóa
     search_query = request.GET.get('search', '')
     if search_query:
         surveys = surveys.filter(
-            Q(title__icontains=search_query) | 
+            Q(title__icontains=search_query) |
             Q(description__icontains=search_query)
         )
-    
+
     context = {
         'surveys': surveys,
         'search_query': search_query,
     }
-    return render(request, 'surveys/home.html', context)
+    return render(request, 'surveys/survey/home.html', context)
+
+
+@login_required
+def dashboard(request):
+    """Trang dashboard cho người dùng đã đăng nhập"""
+    # Thống kê chung
+    total_surveys = Survey.objects.count()
+    total_responses = Response.objects.count()
+
+    # Thống kê riêng cho người dùng
+    user_surveys = Survey.objects.filter(creator=request.user).annotate(
+        response_count=Count('responses')
+    ).order_by('-created_at')
+    user_surveys_count = user_surveys.count()
+    user_responses_count = Response.objects.filter(survey__creator=request.user).count()
+
+    context = {
+        'total_surveys': total_surveys,
+        'total_responses': total_responses,
+        'user_surveys_count': user_surveys_count,
+        'user_responses_count': user_responses_count,
+        'recent_user_surveys': user_surveys[:5],
+    }
+    return render(request, 'surveys/dashboard/dashboard.html', context)
 
 
 @login_required
@@ -89,14 +113,14 @@ def survey_list(request):
     context = {
         'surveys': surveys,
     }
-    return render(request, 'surveys/survey_list.html', context)
+    return render(request, 'surveys/survey/survey_list.html', context)
 
 
 @login_required
 def survey_create(request):
     """Tạo khảo sát mới"""
     if request.method == 'POST':
-        form = SurveyForm(request.POST)
+        form = SurveyForm(request.POST, request.FILES)
         if form.is_valid():
             survey = form.save(commit=False)
             survey.creator = request.user
@@ -106,7 +130,7 @@ def survey_create(request):
     else:
         form = SurveyForm()
     
-    return render(request, 'surveys/survey_form.html', {
+    return render(request, 'surveys/survey/survey_form.html', {
         'form': form,
         'title': 'Tạo khảo sát mới'
     })
@@ -118,7 +142,7 @@ def survey_edit(request, pk):
     survey = get_object_or_404(Survey, pk=pk, creator=request.user)
     
     if request.method == 'POST':
-        form = SurveyForm(request.POST, instance=survey)
+        form = SurveyForm(request.POST, request.FILES, instance=survey)
         if form.is_valid():
             form.save()
             messages.success(request, 'Đã cập nhật khảo sát thành công!')
@@ -126,7 +150,7 @@ def survey_edit(request, pk):
     else:
         form = SurveyForm(instance=survey)
     
-    return render(request, 'surveys/survey_form.html', {
+    return render(request, 'surveys/survey/survey_form.html', {
         'form': form,
         'survey': survey,
         'title': 'Chỉnh sửa khảo sát'
@@ -143,8 +167,8 @@ def survey_detail(request, pk):
     
     can_edit = request.user.is_authenticated and request.user == survey.creator
     
-    # Sử dụng template Google Form nếu người dùng là creator
-    template_name = 'surveys/survey_detail_google_form.html' if can_edit else 'surveys/survey_detail.html'
+    # Sử dụng trang builder nếu là creator, còn lại dùng trang xem chi tiết thường
+    template_name = 'surveys/survey/survey_builder.html' if can_edit else 'surveys/survey/survey_detail.html'
     
     context = {
         'survey': survey,
@@ -165,7 +189,7 @@ def survey_delete(request, pk):
         messages.success(request, 'Đã xóa khảo sát thành công!')
         return redirect('surveys:survey_list')
     
-    return render(request, 'surveys/survey_confirm_delete.html', {
+    return render(request, 'surveys/survey/survey_confirm_delete.html', {
         'survey': survey
     })
 
@@ -191,7 +215,7 @@ def question_add(request, survey_pk):
     else:
         form = QuestionForm()
     
-    return render(request, 'surveys/question_form.html', {
+    return render(request, 'surveys/question/question_form.html', {
         'form': form,
         'survey': survey,
         'title': 'Thêm câu hỏi'
@@ -217,7 +241,7 @@ def question_edit(request, pk):
     else:
         form = QuestionForm(instance=question)
     
-    return render(request, 'surveys/question_form.html', {
+    return render(request, 'surveys/question/question_form.html', {
         'form': form,
         'survey': survey,
         'question': question,
@@ -241,7 +265,7 @@ def question_delete(request, pk):
         messages.success(request, 'Đã xóa câu hỏi thành công!')
         return redirect('surveys:survey_detail', pk=survey_pk)
     
-    return render(request, 'surveys/question_confirm_delete.html', {
+    return render(request, 'surveys/question/question_confirm_delete.html', {
         'question': question,
         'survey': survey
     })
@@ -276,7 +300,7 @@ def choice_add(request, question_pk):
     
     choices = question.choices.all()
     
-    return render(request, 'surveys/choice_form.html', {
+    return render(request, 'surveys/choice/choice_form.html', {
         'form': form,
         'question': question,
         'survey': survey,
@@ -373,7 +397,7 @@ def survey_take(request, pk):
     
     questions = survey.questions.all().prefetch_related('choices')
     
-    return render(request, 'surveys/survey_take.html', {
+    return render(request, 'surveys/survey/survey_take.html', {
         'survey': survey,
         'questions': questions
     })
@@ -429,7 +453,7 @@ def survey_results(request, pk):
         'stats': stats,
         'total_responses': total_responses_count
     }
-    return render(request, 'surveys/survey_results.html', context)
+    return render(request, 'surveys/survey/survey_results.html', context)
 
 
 def get_client_ip(request):
