@@ -1,0 +1,593 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ survey.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-item {
+        background: white;
+        border: 1px solid #dadce0;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 12px;
+        position: relative;
+        transition: all 0.2s;
+    }
+    
+    .question-item:hover {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .question-item.dragging {
+        opacity: 0.5;
+    }
+    
+    .question-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .drag-handle {
+        cursor: move;
+        color: #5f6368;
+        font-size: 20px;
+    }
+    
+    .drag-handle:hover {
+        color: #1a73e8;
+    }
+    
+    .question-number {
+        font-weight: 500;
+        color: #202124;
+        min-width: 30px;
+    }
+    
+    .question-text {
+        flex: 1;
+        font-size: 16px;
+        color: #202124;
+        border: none;
+        outline: none;
+        padding: 8px;
+        border-radius: 4px;
+        background: transparent;
+    }
+    
+    .question-text:focus {
+        background: #f8f9fa;
+        border: 1px solid #1a73e8;
+    }
+    
+    .question-actions {
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .question-item:hover .question-actions {
+        opacity: 1;
+    }
+    
+    .btn-icon {
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: #5f6368;
+        transition: all 0.2s;
+    }
+    
+    .btn-icon:hover {
+        background: #f1f3f4;
+        color: #1a73e8;
+    }
+    
+    .question-type-select {
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+    }
+    
+    .choices-container {
+        margin-top: 16px;
+        padding-left: 40px;
+    }
+    
+    .choice-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .choice-input {
+        flex: 1;
+        border: none;
+        border-bottom: 1px solid #dadce0;
+        padding: 8px 4px;
+        font-size: 14px;
+        outline: none;
+    }
+    
+    .choice-input:focus {
+        border-bottom-color: #1a73e8;
+    }
+    
+    .add-question-btn {
+        background: white;
+        border: 1px dashed #dadce0;
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 12px;
+    }
+    
+    .add-question-btn:hover {
+        border-color: #1a73e8;
+        background: #f8f9fa;
+    }
+    
+    .question-form {
+        background: white;
+        border: 1px solid #dadce0;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 12px;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 900px;">
+    <!-- Survey Header -->
+    <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
+        <div class="card-body">
+            <h1 class="mb-3" style="font-size: 32px; font-weight: 400; color: #202124;">
+                {{ survey.title }}
+            </h1>
+            {% if survey.description %}
+            <p class="text-muted mb-3">{{ survey.description }}</p>
+            {% endif %}
+            <div class="d-flex gap-3 align-items-center">
+                <span class="badge bg-secondary">{{ survey.responses.count }} phản hồi</span>
+                {% if survey.is_active %}
+                <span class="badge bg-success">Đang hoạt động</span>
+                {% else %}
+                <span class="badge bg-secondary">Đã tắt</span>
+                {% endif %}
+                {% if can_edit %}
+                <div class="ms-auto">
+                    <a href="{% url 'surveys:survey_edit' survey.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-gear"></i> Cài đặt
+                    </a>
+                    <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-graph-up"></i> Xem kết quả
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions Container (Sortable) -->
+    <div id="questions-container" data-survey-id="{{ survey.pk }}">
+        {% for question in questions %}
+        <div class="question-item" data-question-id="{{ question.id }}" data-order="{{ question.order }}">
+            <div class="question-header">
+                <i class="bi bi-grip-vertical drag-handle"></i>
+                <span class="question-number">{{ forloop.counter }}.</span>
+                <input type="text" class="question-text" value="{{ question.text }}" 
+                       data-question-id="{{ question.id }}" placeholder="Câu hỏi">
+                <select class="question-type-select" data-question-id="{{ question.id }}">
+                    <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Tự luận</option>
+                    <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Chọn một</option>
+                    <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
+                </select>
+                <div class="question-actions">
+                    <button class="btn-icon" onclick="toggleRequired({{ question.id }})" title="Bắt buộc">
+                        <i class="bi bi-{% if question.is_required %}asterisk{% else %}asterisk text-muted{% endif %}"></i>
+                    </button>
+                    <button class="btn-icon" onclick="deleteQuestion({{ question.id }})" title="Xóa">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            {% if question.question_type != 'text' %}
+            <div class="choices-container" data-question-id="{{ question.id }}">
+                {% for choice in question.choices.all %}
+                <div class="choice-item" data-choice-id="{{ choice.id }}">
+                    <i class="bi bi-{% if question.question_type == 'single' %}circle{% else %}square{% endif %}"></i>
+                    <input type="text" class="choice-input" value="{{ choice.text }}" 
+                           placeholder="Lựa chọn" data-choice-id="{{ choice.id }}">
+                    <button class="btn-icon" onclick="deleteChoice({{ choice.id }})">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                {% endfor %}
+                <button class="btn btn-sm btn-link p-0 mt-2" onclick="addChoice({{ question.id }})">
+                    <i class="bi bi-plus"></i> Thêm lựa chọn
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Add Question Button -->
+    {% if can_edit %}
+    <div class="add-question-btn" onclick="showAddQuestionForm()">
+        <i class="bi bi-plus-circle" style="font-size: 24px; color: #1a73e8;"></i>
+        <div class="mt-2" style="color: #1a73e8; font-weight: 500;">Thêm câu hỏi</div>
+    </div>
+    {% endif %}
+
+    <!-- Preview/Submit Button -->
+    {% if survey.is_active and not is_expired %}
+    <div class="text-center mt-4">
+        <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-lg">
+            <i class="bi bi-eye"></i> Xem trước khảo sát
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Question Form Modal -->
+<div class="modal fade" id="addQuestionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Thêm câu hỏi mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nội dung câu hỏi</label>
+                    <input type="text" class="form-control" id="new-question-text" placeholder="Nhập câu hỏi">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Loại câu hỏi</label>
+                    <select class="form-select" id="new-question-type">
+                        <option value="text">Tự luận</option>
+                        <option value="single">Chọn một</option>
+                        <option value="multiple">Chọn nhiều</option>
+                    </select>
+                </div>
+                <div id="new-question-choices" style="display: none;">
+                    <label class="form-label">Lựa chọn</label>
+                    <div id="choices-list">
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control choice-input-new" placeholder="Lựa chọn 1">
+                        </div>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control choice-input-new" placeholder="Lựa chọn 2">
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-link" onclick="addNewChoiceInput()">
+                        <i class="bi bi-plus"></i> Thêm lựa chọn
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewQuestion()">Thêm</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+const surveyId = {{ survey.pk }};
+const csrfToken = '{{ csrf_token }}';
+
+// Initialize Sortable for drag & drop
+{% if can_edit %}
+let sortable = Sortable.create(document.getElementById('questions-container'), {
+    handle: '.drag-handle',
+    animation: 150,
+    onEnd: function(evt) {
+        saveQuestionOrder();
+    }
+});
+{% endif %}
+
+// Auto-save question text
+document.querySelectorAll('.question-text').forEach(input => {
+    let timeout;
+    input.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            updateQuestion(input.dataset.questionId, {text: input.value});
+        }, 1000);
+    });
+});
+
+// Auto-save question type
+document.querySelectorAll('.question-type-select').forEach(select => {
+    select.addEventListener('change', function() {
+        const questionId = this.dataset.questionId;
+        const questionType = this.value;
+        updateQuestionType(questionId, questionType);
+    });
+});
+
+// Auto-save choice text
+document.querySelectorAll('.choice-input').forEach(input => {
+    let timeout;
+    input.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            updateChoice(input.dataset.choiceId, input.value);
+        }, 1000);
+    });
+});
+
+function showAddQuestionForm() {
+    const modal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
+    document.getElementById('new-question-type').addEventListener('change', function() {
+        document.getElementById('new-question-choices').style.display = 
+            this.value === 'text' ? 'none' : 'block';
+    });
+    modal.show();
+}
+
+function addNewChoiceInput() {
+    const container = document.getElementById('choices-list');
+    const count = container.children.length + 1;
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control choice-input-new" placeholder="Lựa chọn ${count}">
+        <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()">
+            <i class="bi bi-x"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function saveNewQuestion() {
+    const text = document.getElementById('new-question-text').value;
+    const type = document.getElementById('new-question-type').value;
+    const choices = Array.from(document.querySelectorAll('.choice-input-new'))
+        .map(input => input.value.trim())
+        .filter(v => v);
+    
+    if (!text.trim()) {
+        alert('Vui lòng nhập nội dung câu hỏi');
+        return;
+    }
+    
+    fetch(`/api/survey/${surveyId}/question/add/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            text: text,
+            question_type: type,
+            choices: choices,
+            is_required: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Lỗi: ' + data.error);
+        }
+    });
+}
+
+function updateQuestion(questionId, data) {
+    fetch(`/api/question/${questionId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Lỗi cập nhật:', data.error);
+        }
+    });
+}
+
+function updateQuestionType(questionId, type) {
+    const questionItem = document.querySelector(`[data-question-id="${questionId}"]`);
+    const choicesContainer = questionItem.querySelector('.choices-container');
+    
+    if (type === 'text') {
+        if (choicesContainer) {
+            choicesContainer.remove();
+        }
+        updateQuestion(questionId, {question_type: type});
+    } else {
+        if (!choicesContainer) {
+            const container = document.createElement('div');
+            container.className = 'choices-container';
+            container.dataset.questionId = questionId;
+            container.innerHTML = `
+                <div class="choice-item">
+                    <i class="bi bi-${type === 'single' ? 'circle' : 'square'}"></i>
+                    <input type="text" class="choice-input" placeholder="Lựa chọn" data-choice-id="">
+                    <button class="btn-icon" onclick="deleteChoice('')">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <button class="btn btn-sm btn-link p-0 mt-2" onclick="addChoice(${questionId})">
+                    <i class="bi bi-plus"></i> Thêm lựa chọn
+                </button>
+            `;
+            questionItem.appendChild(container);
+        }
+        updateQuestion(questionId, {question_type: type});
+    }
+}
+
+function addChoice(questionId) {
+    const choicesContainer = document.querySelector(`.choices-container[data-question-id="${questionId}"]`);
+    const questionType = document.querySelector(`.question-type-select[data-question-id="${questionId}"]`).value;
+    
+    fetch(`/api/question/${questionId}/choice/add/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({text: ''})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const choiceItem = document.createElement('div');
+            choiceItem.className = 'choice-item';
+            choiceItem.dataset.choiceId = data.choice.id;
+            choiceItem.innerHTML = `
+                <i class="bi bi-${questionType === 'single' ? 'circle' : 'square'}"></i>
+                <input type="text" class="choice-input" value="${data.choice.text}" 
+                       placeholder="Lựa chọn" data-choice-id="${data.choice.id}">
+                <button class="btn-icon" onclick="deleteChoice(${data.choice.id})">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+            const addBtn = choicesContainer.querySelector('button');
+            choicesContainer.insertBefore(choiceItem, addBtn);
+            
+            // Auto-save for new input
+            const input = choiceItem.querySelector('.choice-input');
+            let timeout;
+            input.addEventListener('input', function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    updateChoice(this.dataset.choiceId, this.value);
+                }, 1000);
+            });
+        }
+    });
+}
+
+function updateChoice(choiceId, text) {
+    if (!choiceId) return;
+    // Update choice via question update API
+    const choiceItem = document.querySelector(`[data-choice-id="${choiceId}"]`);
+    const questionId = choiceItem.closest('.question-item').dataset.questionId;
+    const choices = Array.from(choiceItem.closest('.choices-container').querySelectorAll('.choice-input'))
+        .map(input => ({id: input.dataset.choiceId, text: input.value}));
+    
+    // We'll update the whole question with all choices
+    const choicesData = choices.filter(c => c.id).map(c => c.text);
+    updateQuestion(questionId, {choices: choicesData});
+}
+
+function deleteChoice(choiceId) {
+    if (!choiceId) {
+        event.target.closest('.choice-item').remove();
+        return;
+    }
+    
+    if (confirm('Bạn có chắc muốn xóa lựa chọn này?')) {
+        fetch(`/api/choice/${choiceId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.querySelector(`[data-choice-id="${choiceId}"]`).remove();
+            }
+        });
+    }
+}
+
+function deleteQuestion(questionId) {
+    if (confirm('Bạn có chắc muốn xóa câu hỏi này?')) {
+        fetch(`/api/question/${questionId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.querySelector(`[data-question-id="${questionId}"]`).remove();
+                updateQuestionNumbers();
+            }
+        });
+    }
+}
+
+function toggleRequired(questionId) {
+    const btn = event.target.closest('.btn-icon');
+    const icon = btn.querySelector('i');
+    const isRequired = !icon.classList.contains('text-muted');
+    
+    updateQuestion(questionId, {is_required: !isRequired});
+    
+    if (isRequired) {
+        icon.classList.add('text-muted');
+    } else {
+        icon.classList.remove('text-muted');
+    }
+}
+
+function saveQuestionOrder() {
+    const items = Array.from(document.querySelectorAll('.question-item'));
+    const orders = items.map((item, index) => ({
+        id: parseInt(item.dataset.questionId),
+        order: index + 1
+    }));
+    
+    fetch(`/api/survey/${surveyId}/question/reorder/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({orders: orders})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateQuestionNumbers();
+        }
+    });
+}
+
+function updateQuestionNumbers() {
+    document.querySelectorAll('.question-number').forEach((el, index) => {
+        el.textContent = (index + 1) + '.';
+    });
+}
+</script>
+{% endblock %}
+

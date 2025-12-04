@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="mb-0">
+            <i class="bi bi-list-ul"></i> {{ title }}
+        </h3>
+        <small class="text-white">Câu hỏi: {{ question.text|truncatewords:10 }}</small>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label for="{{ form.text.id_for_label }}" class="form-label">
+                        {{ form.text.label }}
+                    </label>
+                    {{ form.text }}
+                    {% if form.text.errors %}
+                    <div class="text-danger small">{{ form.text.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.order.id_for_label }}" class="form-label">
+                        {{ form.order.label }}
+                    </label>
+                    {{ form.order }}
+                    {% if form.order.errors %}
+                    <div class="text-danger small">{{ form.order.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Quay lại
+                </a>
+                <div>
+                    <button type="submit" name="add_another" class="btn btn-info">
+                        <i class="bi bi-plus-circle"></i> Lưu và thêm tiếp
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Lưu
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Existing Choices -->
+{% if choices %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Các lựa chọn hiện có</h5>
+    </div>
+    <div class="card-body">
+        <ul class="list-group">
+            {% for choice in choices %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>
+                    <strong>{{ forloop.counter }}.</strong> {{ choice.text }}
+                </span>
+                <small class="text-muted">Thứ tự: {{ choice.order }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

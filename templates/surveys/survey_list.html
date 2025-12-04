@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Khảo sát của tôi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-list-ul"></i> Khảo sát của tôi
+    </h2>
+    <a href="{% url 'surveys:survey_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Tạo khảo sát mới
+    </a>
+</div>
+
+{% if surveys %}
+<div class="row">
+    {% for survey in surveys %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ survey.title }}</h5>
+                {% if survey.is_active %}
+                <span class="badge bg-success">Đang hoạt động</span>
+                {% else %}
+                <span class="badge bg-secondary">Đã tắt</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ survey.description|truncatewords:15 }}</p>
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ survey.questions.count }}</div>
+                            <small class="text-muted">Câu hỏi</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ survey.response_count }}</div>
+                            <small class="text-muted">Phản hồi</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ survey.created_at|date:"d/m" }}</div>
+                            <small class="text-muted">Ngày tạo</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="btn-group w-100" role="group">
+                    <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Xem
+                    </a>
+                    <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-sm btn-outline-info">
+                        <i class="bi bi-graph-up"></i> Kết quả
+                    </a>
+                    <a href="{% url 'surveys:survey_edit' survey.pk %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-pencil"></i> Sửa
+                    </a>
+                    <a href="{% url 'surveys:survey_delete' survey.pk %}" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i> Xóa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+    <h4 class="mt-3">Bạn chưa có khảo sát nào</h4>
+    <p>Tạo khảo sát đầu tiên của bạn ngay bây giờ!</p>
+    <a href="{% url 'surveys:survey_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Tạo khảo sát mới
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
