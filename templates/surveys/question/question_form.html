@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">
+            <i class="bi bi-question-circle"></i> {{ title }}
+        </h3>
+        <small class="text-white">Khảo sát: {{ survey.title }}</small>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="{{ form.text.id_for_label }}" class="form-label">
+                    {{ form.text.label }}
+                </label>
+                {{ form.text }}
+                {% if form.text.errors %}
+                <div class="text-danger small">{{ form.text.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.question_type.id_for_label }}" class="form-label">
+                        {{ form.question_type.label }}
+                    </label>
+                    {{ form.question_type }}
+                    {% if form.question_type.errors %}
+                    <div class="text-danger small">{{ form.question_type.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.order.id_for_label }}" class="form-label">
+                        {{ form.order.label }}
+                    </label>
+                    {{ form.order }}
+                    {% if form.order.errors %}
+                    <div class="text-danger small">{{ form.order.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    {{ form.is_required }}
+                    <label class="form-check-label" for="{{ form.is_required.id_for_label }}">
+                        {{ form.is_required.label }}
+                    </label>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Hủy
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Lưu
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

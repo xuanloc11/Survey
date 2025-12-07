@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ survey.title }}{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    {% if survey.header_image %}
+    <div class="position-relative" style="max-height: 260px; overflow: hidden; border-radius: 15px 15px 0 0;">
+        <img src="{{ survey.header_image.url }}" alt="Ảnh tiêu đề khảo sát"
+             class="w-100" style="object-fit: cover; height: 260px;">
+    </div>
+    {% endif %}
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">{{ survey.title }}</h3>
+            {% if survey.is_active %}
+            <span class="badge bg-success">Đang hoạt động</span>
+            {% else %}
+            <span class="badge bg-secondary">Đã tắt</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        {% if survey.description %}
+        <p class="lead">{{ survey.description }}</p>
+        {% endif %}
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="bi bi-person"></i> Người tạo: <strong>{{ survey.creator.username }}</strong><br>
+                    <i class="bi bi-calendar"></i> Ngày tạo: {{ survey.created_at|date:"d/m/Y H:i" }}<br>
+                    <i class="bi bi-chat-dots"></i> Số phản hồi: <strong>{{ survey.responses.count }}</strong>
+                </small>
+            </div>
+            <div class="col-md-6">
+                {% if survey.expires_at %}
+                <small class="text-muted">
+                    <i class="bi bi-clock"></i> Hết hạn: {{ survey.expires_at|date:"d/m/Y H:i" }}
+                </small>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if can_edit %}
+        <div class="btn-group">
+            <a href="{% url 'surveys:question_add' survey.pk %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Thêm câu hỏi
+            </a>
+            <a href="{% url 'surveys:survey_edit' survey.pk %}" class="btn btn-warning">
+                <i class="bi bi-pencil"></i> Chỉnh sửa
+            </a>
+            <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-info">
+                <i class="bi bi-graph-up"></i> Xem kết quả
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Questions -->
+<h4 class="mb-3">
+    <i class="bi bi-question-circle"></i> Danh sách câu hỏi
+    <span class="badge bg-primary">{{ questions.count }}</span>
+</h4>
+
+{% if questions %}
+{% for question in questions %}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <h5 class="mb-2">
+                    Câu {{ forloop.counter }}: {{ question.text }}
+                    {% if question.is_required %}
+                    <span class="badge bg-danger">Bắt buộc</span>
+                    {% endif %}
+                    <span class="badge bg-secondary">{{ question.get_question_type_display }}</span>
+                </h5>
+                
+                {% if question.question_type != 'text' %}
+                <div class="mt-3">
+                    <strong>Lựa chọn:</strong>
+                    <ul class="list-group list-group-flush mt-2">
+                        {% for choice in question.choices.all %}
+                        <li class="list-group-item">
+                            <i class="bi bi-{{ question.question_type|yesno:'check-circle,circle' }}"></i>
+                            {{ choice.text }}
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">Chưa có lựa chọn nào</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if can_edit %}
+            <div class="btn-group-vertical ms-3">
+                <a href="{% url 'surveys:question_edit' question.pk %}" class="btn btn-sm btn-outline-warning">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                {% if question.question_type != 'text' %}
+                <a href="{% url 'surveys:choice_add' question.pk %}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-list-ul"></i>
+                </a>
+                {% endif %}
+                <a href="{% url 'surveys:question_delete' question.pk %}" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if survey.is_active and not is_expired %}
+<div class="text-center mt-4">
+    <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-lg">
+        <i class="bi bi-pencil-square"></i> Tham gia khảo sát
+    </a>
+</div>
+{% elif is_expired %}
+<div class="alert alert-warning text-center">
+    <i class="bi bi-exclamation-triangle"></i> Khảo sát này đã hết hạn!
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Chưa có câu hỏi nào. 
+    {% if can_edit %}
+    <a href="{% url 'surveys:question_add' survey.pk %}">Thêm câu hỏi đầu tiên</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+

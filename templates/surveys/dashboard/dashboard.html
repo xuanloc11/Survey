@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Survey Manager{% endblock %}
+
+{% block content %}
+<div class="dashboard-hero">
+    <div class="dashboard-hero-main">
+        <h1>
+            <span class="badge bg-light text-primary me-2"><i class="bi bi-activity"></i> Dashboard</span><br>
+            {% if user.is_authenticated %}
+            Xin chào, {{ user.first_name|default:user.username }}!
+            {% else %}
+            Trung tâm quản lý khảo sát
+            {% endif %}
+        </h1>
+        <p>Đây là nơi bạn theo dõi hiệu quả các khảo sát, kết quả và hoạt động mới nhất.</p>
+        <div class="dashboard-hero-actions">
+            {% if user.is_authenticated %}
+            <a href="{!! raw %}{% url 'surveys:survey_create' %}{% endraw %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-circle"></i> Tạo khảo sát mới
+            </a>
+            <a href="{!! raw %}{% url 'surveys:survey_list' %}{% endraw %}" class="btn btn-outline-light btn-lg">
+                <i class="bi bi-list-task"></i> Khảo sát của tôi
+            </a>
+            {% else %}
+            <a href="{!! raw %}{% url 'surveys:login' %}{% endraw %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-box-arrow-in-right"></i> Đăng nhập để bắt đầu
+            </a>
+            <a href="{!! raw %}{% url 'surveys:register' %}{% endraw %}" class="btn btn-outline-light btn-lg">
+                <i class="bi bi-person-plus"></i> Đăng ký miễn phí
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="dashboard-hero-preview d-none d-md-block">
+        <div class="dashboard-hero-card">
+            <div class="dashboard-hero-card-header"></div>
+            <div class="dashboard-hero-card-body">
+                <div class="skeleton-line w-75"></div>
+                <div class="skeleton-line w-50"></div>
+                <div class="skeleton-pill"></div>
+                <div class="skeleton-choice-list">
+                    <div class="skeleton-choice"></div>
+                    <div class="skeleton-choice"></div>
+                    <div class="skeleton-choice short"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats row -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="stat-card">
+            <div class="param-label"><i class="bi bi-bar-chart"></i> Tổng khảo sát</div>
+            <div class="stat-number">{{ total_surveys }}</div>
+            <div class="stat-subtext">Tất cả khảo sát trên hệ thống</div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="stat-card">
+            <div class="param-label"><i class="bi bi-people"></i> Tổng phản hồi</div>
+            <div class="stat-number">{{ total_responses }}</div>
+            <div class="stat-subtext">Số lượt trả lời đã ghi nhận</div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="stat-card">
+            <div class="param-label"><i class="bi bi-person-badge"></i> Khảo sát của bạn</div>
+            <div class="stat-number">
+                {% if user.is_authenticated %}{{ user_surveys_count }}{% else %}-{% endif %}
+            </div>
+            <div class="stat-subtext">
+                {% if user.is_authenticated %}
+                Khảo sát do bạn tạo
+                {% else %}
+                Đăng nhập để bắt đầu tạo khảo sát
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% if user.is_authenticated %}
+    <div class="col-md-4 mb-3">
+        <div class="stat-card">
+            <div class="param-label"><i class="bi bi-graph-up-arrow"></i> Phản hồi cho khảo sát của bạn</div>
+            <div class="stat-number">{{ user_responses_count }}</div>
+            <div class="stat-subtext">Tổng lượt trả lời trên tất cả khảo sát bạn sở hữu</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if user.is_authenticated and recent_user_surveys %}
+<div class="mb-4">
+    <h4 class="mb-3"><i class="bi bi-clock-history"></i> Khảo sát gần đây của bạn</h4>
+    <div class="survey-grid">
+        {% for survey in recent_user_surveys %}
+        <div class="survey-card">
+            <div class="survey-card-header">
+                <div>
+                    <h5 class="survey-title">{{ survey.title }}</h5>
+                    <p class="survey-desc text-muted mb-1">{{ survey.description|default:"Không có mô tả" |truncatewords:14 }}</p>
+                </div>
+                <span class="badge bg-light text-primary border"><i class="bi bi-person-badge"></i> Của bạn</span>
+            </div>
+            <div class="survey-card-meta">
+                <span><i class="bi bi-calendar"></i> {{ survey.created_at|date:"d/m/Y" }}</span>
+                <span><i class="bi bi-chat-dots"></i> {{ survey.response_count }} phản hồi</span>
+            </div>
+            <div class="survey-card-actions">
+                <a href="{!! raw %}{% url 'surveys:survey_detail' survey.pk %}{% endraw %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-eye"></i> Mở builder
+                </a>
+                <a href="{!! raw %}{% url 'surveys:survey_results' survey.pk %}{% endraw %}" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-graph-up"></i> Xem kết quả
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+

@@ -1,0 +1,150 @@
+/* Styles for survey_builder (Google Form style editor) */
+.question-item {
+    background: white;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 12px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.question-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.question-item.dragging {
+    opacity: 0.5;
+}
+
+.question-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.drag-handle {
+    cursor: move;
+    color: #5f6368;
+    font-size: 20px;
+}
+
+.drag-handle:hover {
+    color: #1a73e8;
+}
+
+.question-number {
+    font-weight: 500;
+    color: #202124;
+    min-width: 30px;
+}
+
+.question-text {
+    flex: 1;
+    font-size: 16px;
+    color: #202124;
+    border: none;
+    outline: none;
+    padding: 8px;
+    border-radius: 4px;
+    background: transparent;
+}
+
+.question-text:focus {
+    background: #f8f9fa;
+    border: 1px solid #1a73e8;
+}
+
+.question-actions {
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.question-item:hover .question-actions {
+    opacity: 1;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #5f6368;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: #f1f3f4;
+    color: #1a73e8;
+}
+
+.question-type-select {
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.choices-container {
+    margin-top: 16px;
+    padding-left: 40px;
+}
+
+.choice-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.choice-input {
+    flex: 1;
+    border: none;
+    border-bottom: 1px solid #dadce0;
+    padding: 8px 4px;
+    font-size: 14px;
+    outline: none;
+}
+
+.choice-input:focus {
+    border-bottom-color: #1a73e8;
+}
+
+.add-question-btn {
+    background: white;
+    border: 1px dashed #dadce0;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 12px;
+}
+
+.add-question-btn:hover {
+    border-color: #1a73e8;
+    background: #f8f9fa;
+}
+
+.question-form {
+    background: white;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 12px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+
