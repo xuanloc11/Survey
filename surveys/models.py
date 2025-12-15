@@ -1,17 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.utils import timezone
 
 
+# Survey giữ nguyên (hoặc thêm ảnh QR như đã bàn)
 class Survey(models.Model):
     title = models.CharField(max_length=200, verbose_name="Tiêu đề")
     description = models.TextField(blank=True, verbose_name="Mô tả")
-    header_image = models.ImageField(
-        upload_to='survey_headers/',
-        blank=True,
-        null=True,
-        verbose_name="Ảnh tiêu đề"
-    )
+    header_image = models.ImageField(upload_to='survey_headers/', blank=True, null=True, verbose_name="Ảnh tiêu đề")
     creator = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Người tạo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ngày cập nhật")
@@ -30,15 +25,20 @@ class Survey(models.Model):
 class Question(models.Model):
     QUESTION_TYPES = [
         ('text', 'Câu hỏi tự luận'),
-        ('single', 'Chọn một đáp án'),
-        ('multiple', 'Chọn nhiều đáp án'),
+        ('single', 'Chọn một đáp án'),  # Radio
+        ('multiple', 'Chọn nhiều đáp án'),  # Checkbox
     ]
 
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='questions', verbose_name="Khảo sát")
     text = models.TextField(verbose_name="Nội dung câu hỏi")
-    question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='single', verbose_name="Loại câu hỏi")
+    question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='single',
+                                     verbose_name="Loại câu hỏi")
     order = models.IntegerField(default=0, verbose_name="Thứ tự")
     is_required = models.BooleanField(default=True, verbose_name="Bắt buộc")
+
+    # THAY ĐỔI 1: Lưu các lựa chọn vào JSONField thay vì bảng Choice riêng
+    # Cấu trúc dữ liệu: ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C"]
+    options = models.JSONField(default=list, blank=True, null=True, verbose_name="Các lựa chọn (JSON)")
 
     class Meta:
         verbose_name = "Câu hỏi"
@@ -49,19 +49,7 @@ class Question(models.Model):
         return self.text[:50]
 
 
-class Choice(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices', verbose_name="Câu hỏi")
-    text = models.CharField(max_length=200, verbose_name="Nội dung lựa chọn")
-    order = models.IntegerField(default=0, verbose_name="Thứ tự")
-
-    class Meta:
-        verbose_name = "Lựa chọn"
-        verbose_name_plural = "Lựa chọn"
-        ordering = ['order']
-
-    def __str__(self):
-        return self.text
-
+# Đã xóa class Choice
 
 class Response(models.Model):
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='responses', verbose_name="Khảo sát")
@@ -69,28 +57,16 @@ class Response(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian gửi")
     ip_address = models.GenericIPAddressField(null=True, blank=True)
 
+    # THAY ĐỔI 2: Lưu toàn bộ câu trả lời vào 1 JSON object duy nhất
+    # Cấu trúc: { "question_id_1": "Giá trị trả lời", "question_id_2": ["A", "B"] }
+    response_data = models.JSONField(default=dict, verbose_name="Dữ liệu trả lời")
+
     class Meta:
         verbose_name = "Phản hồi"
         verbose_name_plural = "Phản hồi"
         ordering = ['-submitted_at']
 
     def __str__(self):
-        return f"Response to {self.survey.title}"
+        return f"Response #{self.id} for {self.survey.title}"
 
-
-class Answer(models.Model):
-    response = models.ForeignKey(Response, on_delete=models.CASCADE, related_name='answers', verbose_name="Phản hồi")
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, verbose_name="Câu hỏi")
-    text_answer = models.TextField(blank=True, null=True, verbose_name="Câu trả lời dạng text")
-    choice = models.ForeignKey(Choice, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Lựa chọn")
-
-    class Meta:
-        verbose_name = "Câu trả lời"
-        verbose_name_plural = "Câu trả lời"
-
-    def __str__(self):
-        if self.text_answer:
-            return self.text_answer[:50]
-        elif self.choice:
-            return self.choice.text
-        return "No answer"
+# Đã xóa class Answer

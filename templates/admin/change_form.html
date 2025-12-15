@@ -1,0 +1,20 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .submit-row {
+        @apply bg-gray-50 border-t border-gray-200 p-4 rounded-b-lg;
+    }
+    .submit-row input[type="submit"] {
+        @apply admin-button-primary;
+    }
+    .submit-row input[type="submit"].default {
+        @apply admin-button-primary;
+    }
+    .submit-row a.deletelink {
+        @apply px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    #changelist {
+        @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6;
+    }
+    #changelist-filter {
+        @apply bg-white rounded-lg shadow-md border border-gray-200 p-4;
+    }
+    .results {
+        @apply overflow-x-auto;
+    }
+    .results table {
+        @apply min-w-full divide-y divide-gray-200;
+    }
+    .results thead {
+        @apply bg-gray-50;
+    }
+    .results th {
+        @apply px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200;
+    }
+    .results td {
+        @apply px-6 py-3 text-sm text-gray-700 border-b border-gray-100;
+    }
+    .results tbody tr {
+        @apply hover:bg-gray-50 transition-colors;
+    }
+</style>
+{% endblock %}

@@ -7,8 +7,8 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 import json
-from .models import Survey, Question, Choice, Response, Answer
-from .forms import SurveyForm, QuestionForm, ChoiceForm, ResponseForm, UserRegisterForm
+from .models import Survey, Question, Response
+from .forms import SurveyForm, QuestionForm, ResponseForm, UserRegisterForm
 
 
 def register_view(request):
@@ -160,7 +160,7 @@ def survey_edit(request, pk):
 def survey_detail(request, pk):
     """Chi tiết khảo sát"""
     survey = get_object_or_404(Survey, pk=pk)
-    questions = survey.questions.all().prefetch_related('choices').order_by('order')
+    questions = survey.questions.all().order_by('order')
     
     # Kiểm tra xem khảo sát có hết hạn không
     is_expired = survey.expires_at and survey.expires_at < timezone.now()
@@ -282,11 +282,13 @@ def choice_add(request, question_pk):
         return redirect('surveys:survey_detail', pk=survey.pk)
     
     if request.method == 'POST':
-        form = ChoiceForm(request.POST)
-        if form.is_valid():
-            choice = form.save(commit=False)
-            choice.question = question
-            choice.save()
+        option_text = request.POST.get('text', '').strip()
+        if option_text:
+            # Thêm vào options (JSONField)
+            if question.options is None:
+                question.options = []
+            question.options.append(option_text)
+            question.save()
             
             # Kiểm tra xem có muốn thêm tiếp không
             if 'add_another' in request.POST:
@@ -295,16 +297,16 @@ def choice_add(request, question_pk):
             else:
                 messages.success(request, 'Đã thêm lựa chọn thành công!')
                 return redirect('surveys:survey_detail', pk=survey.pk)
-    else:
-        form = ChoiceForm()
+        else:
+            messages.error(request, 'Vui lòng nhập nội dung lựa chọn!')
     
-    choices = question.choices.all()
+    # Lấy options từ JSONField
+    options = question.options or []
     
     return render(request, 'surveys/choice/choice_form.html', {
-        'form': form,
         'question': question,
         'survey': survey,
-        'choices': choices,
+        'options': options,
         'title': 'Thêm lựa chọn'
     })
 
@@ -345,49 +347,47 @@ def survey_take(request, pk):
             for error in errors:
                 messages.error(request, error)
         else:
-            # Create response
-            response = Response.objects.create(
-                survey=survey,
-                respondent=request.user if request.user.is_authenticated else None,
-                ip_address=get_client_ip(request)
-            )
-            
-            # Save answers
+            # Lưu tất cả câu trả lời vào response_data (JSONField)
+            response_data = {}
             for question in survey.questions.all():
                 field_name = f'question_{question.id}'
                 
                 if question.question_type == 'text':
                     text_answer = request.POST.get(field_name, '').strip()
                     if text_answer:
-                        Answer.objects.create(
-                            response=response,
-                            question=question,
-                            text_answer=text_answer
-                        )
+                        response_data[str(question.id)] = text_answer
                 elif question.question_type == 'single':
-                    choice_id = request.POST.get(field_name)
-                    if choice_id:
+                    # Lấy index của option được chọn
+                    selected_index = request.POST.get(field_name)
+                    if selected_index and question.options:
                         try:
-                            choice = Choice.objects.get(pk=choice_id, question=question)
-                            Answer.objects.create(
-                                response=response,
-                                question=question,
-                                choice=choice
-                            )
-                        except Choice.DoesNotExist:
+                            index = int(selected_index)
+                            if 0 <= index < len(question.options):
+                                response_data[str(question.id)] = question.options[index]
+                        except (ValueError, IndexError):
                             pass
                 elif question.question_type == 'multiple':
-                    choice_ids = request.POST.getlist(field_name)
-                    for choice_id in choice_ids:
-                        try:
-                            choice = Choice.objects.get(pk=choice_id, question=question)
-                            Answer.objects.create(
-                                response=response,
-                                question=question,
-                                choice=choice
-                            )
-                        except Choice.DoesNotExist:
-                            pass
+                    # Lấy danh sách các index được chọn
+                    selected_indices = request.POST.getlist(field_name)
+                    if selected_indices and question.options:
+                        selected_options = []
+                        for idx_str in selected_indices:
+                            try:
+                                index = int(idx_str)
+                                if 0 <= index < len(question.options):
+                                    selected_options.append(question.options[index])
+                            except (ValueError, IndexError):
+                                pass
+                        if selected_options:
+                            response_data[str(question.id)] = selected_options
+            
+            # Create response với response_data
+            response = Response.objects.create(
+                survey=survey,
+                respondent=request.user if request.user.is_authenticated else None,
+                ip_address=get_client_ip(request),
+                response_data=response_data
+            )
             
             messages.success(request, 'Cảm ơn bạn đã tham gia khảo sát!')
             if request.user == survey.creator:
@@ -395,7 +395,7 @@ def survey_take(request, pk):
             else:
                 return redirect('surveys:survey_detail', pk=pk)
     
-    questions = survey.questions.all().prefetch_related('choices')
+    questions = survey.questions.all()
     
     return render(request, 'surveys/survey/survey_take.html', {
         'survey': survey,
@@ -409,20 +409,24 @@ def survey_results(request, pk):
     survey = get_object_or_404(Survey, pk=pk, creator=request.user)
     
     responses = survey.responses.all()
-    questions = survey.questions.all().prefetch_related('choices').order_by('order')
-    
-    # Prefetch answers để tối ưu query
-    question_ids = [q.id for q in questions]
-    answers = Answer.objects.filter(question_id__in=question_ids).select_related('choice')
+    questions = survey.questions.all().order_by('order')
     
     # Thống kê
     stats = []
     total_responses_count = responses.count()
     
     for question in questions:
+        question_id_str = str(question.id)
+        
         if question.question_type == 'text':
-            # Đếm số câu trả lời text
-            text_answers = [a for a in answers if a.question_id == question.id and a.text_answer]
+            # Thu thập tất cả câu trả lời text
+            text_answers = []
+            for response in responses:
+                if response.response_data and question_id_str in response.response_data:
+                    answer_value = response.response_data[question_id_str]
+                    if isinstance(answer_value, str) and answer_value.strip():
+                        text_answers.append(answer_value)
+            
             stats.append({
                 'question': question,
                 'type': 'text',
@@ -430,16 +434,31 @@ def survey_results(request, pk):
                 'total': len(text_answers)
             })
         else:
-            # Thống kê lựa chọn
+            # Thống kê lựa chọn từ options (JSONField)
             choice_stats = []
-            for choice in question.choices.all():
-                count = sum(1 for a in answers if a.question_id == question.id and a.choice_id == choice.id)
-                percentage = (count / total_responses_count * 100) if total_responses_count > 0 else 0
-                choice_stats.append({
-                    'choice': choice,
-                    'count': count,
-                    'percentage': round(percentage, 1)
-                })
+            if question.options:
+                for idx, option_text in enumerate(question.options):
+                    count = 0
+                    for response in responses:
+                        if response.response_data and question_id_str in response.response_data:
+                            answer_value = response.response_data[question_id_str]
+                            if question.question_type == 'single':
+                                # So sánh với option text
+                                if answer_value == option_text:
+                                    count += 1
+                            elif question.question_type == 'multiple':
+                                # Kiểm tra nếu option có trong danh sách
+                                if isinstance(answer_value, list) and option_text in answer_value:
+                                    count += 1
+                    
+                    percentage = (count / total_responses_count * 100) if total_responses_count > 0 else 0
+                    choice_stats.append({
+                        'option': option_text,
+                        'index': idx,
+                        'count': count,
+                        'percentage': round(percentage, 1)
+                    })
+            
             stats.append({
                 'question': question,
                 'type': question.question_type,
@@ -484,14 +503,10 @@ def question_add_ajax(request, survey_pk):
             is_required=data.get('is_required', True)
         )
         
-        choices_data = data.get('choices', [])
-        for idx, choice_text in enumerate(choices_data):
-            if choice_text.strip():
-                Choice.objects.create(
-                    question=question,
-                    text=choice_text.strip(),
-                    order=idx + 1
-                )
+        # Lưu options vào JSONField
+        options_data = data.get('choices', []) or data.get('options', [])
+        question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
+        question.save()
         
         return JsonResponse({
             'success': True,
@@ -501,7 +516,7 @@ def question_add_ajax(request, survey_pk):
                 'question_type': question.question_type,
                 'is_required': question.is_required,
                 'order': question.order,
-                'choices': [{'id': c.id, 'text': c.text} for c in question.choices.all()]
+                'options': question.options or []
             }
         })
     except Exception as e:
@@ -523,20 +538,13 @@ def question_update_ajax(request, pk):
         question.question_type = data.get('question_type', question.question_type)
         question.order = data.get('order', question.order)
         question.is_required = data.get('is_required', question.is_required)
-        question.save()
         
-        # Cập nhật lựa chọn nếu có
-        if 'choices' in data:
-            # Xóa lựa chọn cũ
-            question.choices.all().delete()
-            # Thêm lựa chọn mới
-            for idx, choice_text in enumerate(data['choices']):
-                if choice_text.strip():
-                    Choice.objects.create(
-                        question=question,
-                        text=choice_text.strip(),
-                        order=idx + 1
-                    )
+        # Cập nhật options nếu có
+        if 'choices' in data or 'options' in data:
+            options_data = data.get('choices', []) or data.get('options', [])
+            question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
+        
+        question.save()
         
         return JsonResponse({
             'success': True,
@@ -546,7 +554,7 @@ def question_update_ajax(request, pk):
                 'question_type': question.question_type,
                 'is_required': question.is_required,
                 'order': question.order,
-                'choices': [{'id': c.id, 'text': c.text} for c in question.choices.all()]
+                'options': question.options or []
             }
         })
     except Exception as e:
@@ -587,49 +595,6 @@ def question_reorder_ajax(request, survey_pk):
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
 
-@login_required
-@require_http_methods(["POST"])
-def choice_add_ajax(request, question_pk):
-    """API AJAX để thêm lựa chọn"""
-    question = get_object_or_404(Question, pk=question_pk)
-    
-    if question.survey.creator != request.user:
-        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
-    
-    try:
-        data = json.loads(request.body)
-        choice = Choice.objects.create(
-            question=question,
-            text=data.get('text', ''),
-            order=data.get('order', question.choices.count() + 1)
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'choice': {
-                'id': choice.id,
-                'text': choice.text,
-                'order': choice.order
-            }
-        })
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-
-@login_required
-@require_http_methods(["POST"])
-def choice_delete_ajax(request, pk):
-    """API AJAX để xóa lựa chọn"""
-    choice = get_object_or_404(Choice, pk=pk)
-    
-    if choice.question.survey.creator != request.user:
-        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
-    
-    try:
-        choice.delete()
-        return JsonResponse({'success': True})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
 
 # ========== AJAX API Endpoints ==========
@@ -650,14 +615,10 @@ def question_add_ajax(request, survey_pk):
             is_required=data.get('is_required', True)
         )
         
-        choices_data = data.get('choices', [])
-        for idx, choice_text in enumerate(choices_data):
-            if choice_text.strip():
-                Choice.objects.create(
-                    question=question,
-                    text=choice_text.strip(),
-                    order=idx + 1
-                )
+        # Lưu options vào JSONField
+        options_data = data.get('choices', []) or data.get('options', [])
+        question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
+        question.save()
         
         return JsonResponse({
             'success': True,
@@ -667,7 +628,7 @@ def question_add_ajax(request, survey_pk):
                 'question_type': question.question_type,
                 'is_required': question.is_required,
                 'order': question.order,
-                'choices': [{'id': c.id, 'text': c.text} for c in question.choices.all()]
+                'options': question.options or []
             }
         })
     except Exception as e:
@@ -689,20 +650,13 @@ def question_update_ajax(request, pk):
         question.question_type = data.get('question_type', question.question_type)
         question.order = data.get('order', question.order)
         question.is_required = data.get('is_required', question.is_required)
-        question.save()
         
-        # Cập nhật lựa chọn nếu có
-        if 'choices' in data:
-            # Xóa lựa chọn cũ
-            question.choices.all().delete()
-            # Thêm lựa chọn mới
-            for idx, choice_text in enumerate(data['choices']):
-                if choice_text.strip():
-                    Choice.objects.create(
-                        question=question,
-                        text=choice_text.strip(),
-                        order=idx + 1
-                    )
+        # Cập nhật options nếu có
+        if 'choices' in data or 'options' in data:
+            options_data = data.get('choices', []) or data.get('options', [])
+            question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
+        
+        question.save()
         
         return JsonResponse({
             'success': True,
@@ -712,7 +666,7 @@ def question_update_ajax(request, pk):
                 'question_type': question.question_type,
                 'is_required': question.is_required,
                 'order': question.order,
-                'choices': [{'id': c.id, 'text': c.text} for c in question.choices.all()]
+                'options': question.options or []
             }
         })
     except Exception as e:
@@ -753,46 +707,3 @@ def question_reorder_ajax(request, survey_pk):
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
 
-@login_required
-@require_http_methods(["POST"])
-def choice_add_ajax(request, question_pk):
-    """API AJAX để thêm lựa chọn"""
-    question = get_object_or_404(Question, pk=question_pk)
-    
-    if question.survey.creator != request.user:
-        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
-    
-    try:
-        data = json.loads(request.body)
-        choice = Choice.objects.create(
-            question=question,
-            text=data.get('text', ''),
-            order=data.get('order', question.choices.count() + 1)
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'choice': {
-                'id': choice.id,
-                'text': choice.text,
-                'order': choice.order
-            }
-        })
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-
-@login_required
-@require_http_methods(["POST"])
-def choice_delete_ajax(request, pk):
-    """API AJAX để xóa lựa chọn"""
-    choice = get_object_or_404(Choice, pk=pk)
-    
-    if choice.question.survey.creator != request.user:
-        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
-    
-    try:
-        choice.delete()
-        return JsonResponse({'success': True})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)

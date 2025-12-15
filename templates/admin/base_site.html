@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div class="flex items-center space-x-3">
+    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+        <i class="bi bi-clipboard-data text-white text-xl"></i>
+    </div>
+    <div>
+        <h1 class="text-xl font-bold text-gray-800 dark:text-white">{{ site_header|default:_('Django administration') }}</h1>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Hệ thống Quản lý Khảo sát</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+

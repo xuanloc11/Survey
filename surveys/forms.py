@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Survey, Question, Choice, Response, Answer
+from .models import Survey, Question, Response
 
 
 class SurveyForm(forms.ModelForm):
@@ -41,21 +41,6 @@ class QuestionForm(forms.ModelForm):
             'is_required': 'Bắt buộc',
         }
 
-
-class ChoiceForm(forms.ModelForm):
-    class Meta:
-        model = Choice
-        fields = ['text', 'order']
-        widgets = {
-            'text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập lựa chọn'}),
-            'order': forms.NumberInput(attrs={'class': 'form-control'}),
-        }
-        labels = {
-            'text': 'Nội dung lựa chọn',
-            'order': 'Thứ tự',
-        }
-
-
 class ResponseForm(forms.Form):
     def __init__(self, *args, **kwargs):
         survey = kwargs.pop('survey')
@@ -69,7 +54,9 @@ class ResponseForm(forms.Form):
                     widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
                 )
             elif question.question_type == 'single':
-                choices = [(choice.id, choice.text) for choice in question.choices.all()]
+                # Sử dụng options từ JSONField
+                options = question.options or []
+                choices = [(idx, opt) for idx, opt in enumerate(options)]
                 self.fields[f'question_{question.id}'] = forms.ChoiceField(
                     label=question.text,
                     required=question.is_required,
@@ -77,7 +64,9 @@ class ResponseForm(forms.Form):
                     widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
                 )
             elif question.question_type == 'multiple':
-                choices = [(choice.id, choice.text) for choice in question.choices.all()]
+                # Sử dụng options từ JSONField
+                options = question.options or []
+                choices = [(idx, opt) for idx, opt in enumerate(options)]
                 self.fields[f'question_{question.id}'] = forms.MultipleChoiceField(
                     label=question.text,
                     required=question.is_required,

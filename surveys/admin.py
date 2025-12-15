@@ -1,64 +1,37 @@
 from django.contrib import admin
-from .models import Survey, Question, Choice, Response, Answer
+from django.utils.html import format_html
+import json
 
-admin.site.site_header = "Hệ thống Quản lý Khảo sát"
-admin.site.site_title = "Survey Manager"
-admin.site.index_title = "Trang quản trị"
+# Chỉ import những model còn tồn tại
+from .models import Survey, Question, Response
 
-
-class ChoiceInline(admin.TabularInline):
-    model = Choice
-    extra = 2
-
-
-class QuestionInline(admin.TabularInline):
+# Inline để thêm câu hỏi ngay trong trang chi tiết Khảo sát
+class QuestionInline(admin.StackedInline):
     model = Question
     extra = 1
-    show_change_link = True
-
 
 @admin.register(Survey)
 class SurveyAdmin(admin.ModelAdmin):
-    list_display = ['title', 'creator', 'created_at', 'is_active', 'response_count']
-    list_filter = ['is_active', 'created_at']
-    search_fields = ['title', 'description']
     inlines = [QuestionInline]
-
-    def response_count(self, obj):
-        return obj.responses.count()
-    response_count.short_description = 'Số phản hồi'
-
+    list_display = ('title', 'creator', 'created_at', 'is_active')
+    search_fields = ('title',)
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['text', 'survey', 'question_type', 'order', 'is_required']
-    list_filter = ['question_type', 'is_required']
-    search_fields = ['text']
-    inlines = [ChoiceInline]
-
-
-@admin.register(Choice)
-class ChoiceAdmin(admin.ModelAdmin):
-    list_display = ['text', 'question', 'order']
-    list_filter = ['question__survey']
-
+    list_display = ('text', 'survey', 'question_type', 'is_required')
+    list_filter = ('survey', 'question_type')
 
 @admin.register(Response)
 class ResponseAdmin(admin.ModelAdmin):
-    list_display = ['survey', 'respondent', 'submitted_at']
-    list_filter = ['submitted_at', 'survey']
-    readonly_fields = ['submitted_at']
+    list_display = ('id', 'survey', 'respondent', 'submitted_at')
+    readonly_fields = ('response_data_pretty',) # Chỉ đọc field này
 
+    # Hàm giúp hiển thị JSON đẹp trong admin
+    def response_data_pretty(self, instance):
+        if not instance.response_data:
+            return "{}"
+        # Format JSON thành chuỗi có thụt đầu dòng, hiển thị tiếng Việt đúng
+        response_formatted = json.dumps(instance.response_data, ensure_ascii=False, indent=4)
+        return format_html('<pre>{}</pre>', response_formatted)
 
-@admin.register(Answer)
-class AnswerAdmin(admin.ModelAdmin):
-    list_display = ['response', 'question', 'get_answer']
-    list_filter = ['question__survey']
-
-    def get_answer(self, obj):
-        if obj.text_answer:
-            return obj.text_answer[:50]
-        elif obj.choice:
-            return obj.choice.text
-        return "-"
-    get_answer.short_description = 'Câu trả lời'
+    response_data_pretty.short_description = "Dữ liệu trả lời (Chi tiết)"
