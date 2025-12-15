@@ -595,41 +595,35 @@ def question_reorder_ajax(request, survey_pk):
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
 
-
-
-# ========== AJAX API Endpoints ==========
-
 @login_required
 @require_http_methods(["POST"])
-def question_add_ajax(request, survey_pk):
-    """API AJAX để thêm câu hỏi"""
-    survey = get_object_or_404(Survey, pk=survey_pk, creator=request.user)
+def choice_add_ajax(request, question_pk):
+    """API AJAX để thêm lựa chọn cho câu hỏi"""
+    question = get_object_or_404(Question, pk=question_pk)
+    
+    if question.survey.creator != request.user:
+        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
     
     try:
         data = json.loads(request.body)
-        question = Question.objects.create(
-            survey=survey,
-            text=data.get('text', ''),
-            question_type=data.get('question_type', 'single'),
-            order=data.get('order', survey.questions.count() + 1),
-            is_required=data.get('is_required', True)
-        )
+        option_text = data.get('text', '').strip()
         
-        # Lưu options vào JSONField
-        options_data = data.get('choices', []) or data.get('options', [])
-        question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
+        if not option_text:
+            return JsonResponse({'success': False, 'error': 'Vui lòng nhập nội dung lựa chọn!'}, status=400)
+        
+        # Thêm vào options (JSONField)
+        if question.options is None:
+            question.options = []
+        question.options.append(option_text)
         question.save()
         
         return JsonResponse({
             'success': True,
-            'question': {
-                'id': question.id,
-                'text': question.text,
-                'question_type': question.question_type,
-                'is_required': question.is_required,
-                'order': question.order,
-                'options': question.options or []
-            }
+            'choice': {
+                'text': option_text,
+                'index': len(question.options) - 1
+            },
+            'options': question.options
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
@@ -637,8 +631,8 @@ def question_add_ajax(request, survey_pk):
 
 @login_required
 @require_http_methods(["POST"])
-def question_update_ajax(request, pk):
-    """API AJAX để cập nhật câu hỏi"""
+def choice_delete_ajax(request, pk):
+    """API AJAX để xóa lựa chọn khỏi câu hỏi"""
     question = get_object_or_404(Question, pk=pk)
     
     if question.survey.creator != request.user:
@@ -646,63 +640,28 @@ def question_update_ajax(request, pk):
     
     try:
         data = json.loads(request.body)
-        question.text = data.get('text', question.text)
-        question.question_type = data.get('question_type', question.question_type)
-        question.order = data.get('order', question.order)
-        question.is_required = data.get('is_required', question.is_required)
+        choice_index = data.get('index')
         
-        # Cập nhật options nếu có
-        if 'choices' in data or 'options' in data:
-            options_data = data.get('choices', []) or data.get('options', [])
-            question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
+        if choice_index is None:
+            return JsonResponse({'success': False, 'error': 'Thiếu thông tin index'}, status=400)
         
-        question.save()
+        if question.options is None or not isinstance(question.options, list):
+            return JsonResponse({'success': False, 'error': 'Không có lựa chọn nào'}, status=400)
         
-        return JsonResponse({
-            'success': True,
-            'question': {
-                'id': question.id,
-                'text': question.text,
-                'question_type': question.question_type,
-                'is_required': question.is_required,
-                'order': question.order,
-                'options': question.options or []
-            }
-        })
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-
-@login_required
-@require_http_methods(["POST"])
-def question_delete_ajax(request, pk):
-    """API AJAX để xóa câu hỏi"""
-    question = get_object_or_404(Question, pk=pk)
-    
-    if question.survey.creator != request.user:
-        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
-    
-    try:
-        question.delete()
-        return JsonResponse({'success': True})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-
-@login_required
-@require_http_methods(["POST"])
-def question_reorder_ajax(request, survey_pk):
-    """API AJAX để sắp xếp lại thứ tự câu hỏi"""
-    survey = get_object_or_404(Survey, pk=survey_pk, creator=request.user)
-    
-    try:
-        data = json.loads(request.body)
-        question_orders = data.get('orders', [])  # [{id: 1, order: 1}, {id: 2, order: 2}]
-        
-        for item in question_orders:
-            Question.objects.filter(pk=item['id'], survey=survey).update(order=item['order'])
-        
-        return JsonResponse({'success': True})
+        try:
+            index = int(choice_index)
+            if 0 <= index < len(question.options):
+                removed_option = question.options.pop(index)
+                question.save()
+                return JsonResponse({
+                    'success': True,
+                    'removed_option': removed_option,
+                    'options': question.options
+                })
+            else:
+                return JsonResponse({'success': False, 'error': 'Index không hợp lệ'}, status=400)
+        except (ValueError, IndexError):
+            return JsonResponse({'success': False, 'error': 'Index không hợp lệ'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
