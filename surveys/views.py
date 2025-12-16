@@ -1,32 +1,107 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth import login, authenticate, logout, get_user_model
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.core.files.storage import FileSystemStorage
+from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.conf import settings
+from django.urls import reverse
 import json
+import csv
 from .models import Survey, Question, Response
-from .forms import SurveyForm, QuestionForm, ResponseForm, UserRegisterForm
+from .forms import (
+    SurveyForm,
+    QuestionForm,
+    ResponseForm,
+    UserRegisterForm,
+    UserProfileForm,
+)
+
+User = get_user_model()
 
 
 def register_view(request):
-    """Trang đăng ký"""
+    """Trang đăng ký với xác nhận email"""
     if request.user.is_authenticated:
         return redirect('surveys:home')
-    
+
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            username = form.cleaned_data.get('username')
-            messages.success(request, f'Tài khoản {username} đã được tạo thành công! Vui lòng đăng nhập.')
+            user: User = form.save(commit=False)
+            # Tài khoản cần xác nhận email trước khi có thể đăng nhập
+            user.is_active = False
+            user.save()
+
+            # Gửi email xác nhận
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            activation_link = request.build_absolute_uri(
+                reverse('surveys:activate', kwargs={'uidb64': uidb64, 'token': token})
+            )
+
+            subject = 'Xác nhận tài khoản HCMUTE Survey'
+            message = (
+                f'Xin chào {user.username},\n\n'
+                'Cảm ơn bạn đã đăng ký tài khoản trên HCMUTE Survey.\n'
+                'Vui lòng nhấp vào liên kết dưới đây để kích hoạt tài khoản của bạn:\n\n'
+                f'{activation_link}\n\n'
+                'Nếu bạn không thực hiện đăng ký này, hãy bỏ qua email.\n\n'
+                'Trân trọng,\n'
+                'HCMUTE Survey'
+            )
+
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+                messages.success(
+                    request,
+                    'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.'
+                )
+            except Exception:
+                # Nếu gửi mail lỗi, vẫn tạo tài khoản nhưng thông báo cho admin qua log/message
+                messages.warning(
+                    request,
+                    'Đăng ký thành công nhưng hiện không gửi được email xác nhận. '
+                    'Hãy liên hệ quản trị viên để kích hoạt tài khoản.'
+                )
+
             return redirect('surveys:login')
     else:
         form = UserRegisterForm()
-    
+
     return render(request, 'auth/register.html', {'form': form})
+
+
+def activate_account(request, uidb64, token):
+    """Kích hoạt tài khoản từ link trong email"""
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if not user.is_active:
+            user.is_active = True
+            user.save()
+        messages.success(request, 'Tài khoản của bạn đã được kích hoạt. Bây giờ bạn có thể đăng nhập.')
+        return redirect('surveys:login')
+
+    messages.error(request, 'Link kích hoạt không hợp lệ hoặc đã hết hạn.')
+    return redirect('surveys:login')
 
 
 def login_view(request):
@@ -56,6 +131,21 @@ def logout_view(request):
     logout(request)
     messages.success(request, 'Bạn đã đăng xuất thành công!')
     return redirect('surveys:home')
+
+
+@login_required
+def profile_view(request):
+    """Trang thông tin cá nhân"""
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật thông tin cá nhân!')
+            return redirect('surveys:profile')
+    else:
+        form = UserProfileForm(instance=request.user)
+
+    return render(request, 'auth/profile.html', {'form': form})
 
 
 def home(request):
@@ -175,7 +265,80 @@ def survey_detail(request, pk):
         'questions': questions,
         'is_expired': is_expired,
         'can_edit': can_edit,
+        # Khi đang ở chế độ builder (người tạo đang chỉnh sửa),
+        # ẩn các nút điều hướng chính trên navbar để giống Google Forms
+        'builder_mode': can_edit,
+        # Link chia sẻ công khai
+        'share_link': request.build_absolute_uri(
+            reverse('surveys:survey_take', args=[survey.pk])
+        ),
     }
+    
+    # Thêm dữ liệu cho tab "Kết quả" nếu là creator
+    if can_edit:
+        responses = survey.responses.all()
+        total_responses_count = responses.count()
+        
+        # Thống kê
+        stats = []
+        for question in questions:
+            question_id_str = str(question.id)
+            
+            if question.question_type not in ['text', 'single', 'multiple']:
+                continue
+            
+            if question.question_type == 'text':
+                # Thu thập tất cả câu trả lời text
+                text_answers = []
+                for response in responses:
+                    if response.response_data and question_id_str in response.response_data:
+                        answer_value = response.response_data[question_id_str]
+                        if isinstance(answer_value, str) and answer_value.strip():
+                            text_answers.append(answer_value)
+                
+                stats.append({
+                    'question': question,
+                    'type': 'text',
+                    'answers': text_answers[:10],  # Hiển thị 10 câu trả lời đầu
+                    'total': len(text_answers)
+                })
+            else:
+                # Thống kê lựa chọn từ options (JSONField)
+                choice_stats = []
+                if question.options:
+                    for idx, option_text in enumerate(question.options):
+                        count = 0
+                        for response in responses:
+                            if response.response_data and question_id_str in response.response_data:
+                                answer_value = response.response_data[question_id_str]
+                                if question.question_type == 'single':
+                                    # So sánh với option text
+                                    if answer_value == option_text:
+                                        count += 1
+                                elif question.question_type == 'multiple':
+                                    # Kiểm tra nếu option có trong danh sách
+                                    if isinstance(answer_value, list) and option_text in answer_value:
+                                        count += 1
+                        
+                        percentage = (count / total_responses_count * 100) if total_responses_count > 0 else 0
+                        choice_stats.append({
+                            'option': option_text,
+                            'index': idx,
+                            'count': count,
+                            'percentage': round(percentage, 1)
+                        })
+                
+                stats.append({
+                    'question': question,
+                    'type': question.question_type,
+                    'choices': choice_stats,
+                    'total': total_responses_count
+                })
+        
+        context['stats'] = stats
+        context['total_responses'] = total_responses_count
+        context['responses'] = responses
+    
     return render(request, template_name, context)
 
 
@@ -320,7 +483,7 @@ def survey_take(request, pk):
         messages.error(request, 'Khảo sát này đã hết hạn!')
         return redirect('surveys:survey_detail', pk=pk)
     
-    # Kiểm tra xem đã trả lời chưa (nếu đã đăng nhập)
+    # Kiểm tra xem đã trả lời chưa
     if request.user.is_authenticated:
         has_responded = Response.objects.filter(survey=survey, respondent=request.user).exists()
         if has_responded:
@@ -329,12 +492,25 @@ def survey_take(request, pk):
                 return redirect('surveys:survey_results', pk=pk)
             else:
                 return redirect('surveys:survey_detail', pk=pk)
+    else:
+        # Người dùng không đăng nhập: giới hạn theo IP (1 lần / khảo sát)
+        client_ip = get_client_ip(request)
+        has_responded_ip = Response.objects.filter(
+            survey=survey,
+            respondent__isnull=True,
+            ip_address=client_ip
+        ).exists()
+        if has_responded_ip:
+            messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
+            return redirect('surveys:survey_detail', pk=pk)
     
     if request.method == 'POST':
         # Validate required questions
         errors = []
         for question in survey.questions.all():
             field_name = f'question_{question.id}'
+            if question.question_type not in ['text', 'single', 'multiple']:
+                continue
             if question.is_required:
                 if question.question_type == 'multiple':
                     if field_name not in request.POST or not request.POST.getlist(field_name):
@@ -418,6 +594,9 @@ def survey_results(request, pk):
     for question in questions:
         question_id_str = str(question.id)
         
+        if question.question_type not in ['text', 'single', 'multiple']:
+            continue
+        
         if question.question_type == 'text':
             # Thu thập tất cả câu trả lời text
             text_answers = []
@@ -475,6 +654,46 @@ def survey_results(request, pk):
     return render(request, 'surveys/survey/survey_results.html', context)
 
 
+@login_required
+def survey_export_csv(request, pk):
+    """Xuất kết quả khảo sát ra file CSV"""
+    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+
+    responses = survey.responses.all().order_by('submitted_at')
+    questions = survey.questions.all().order_by('order')
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="survey_{survey.pk}_responses.csv"'
+    response.write("\ufeff")  # BOM
+    writer = csv.writer(response, delimiter=';')
+    header = ['Thời gian']
+    for question in questions:
+        header.append(question.text)
+    writer.writerow(header)
+
+    # Ghi từng dòng dữ liệu
+    for resp in responses:
+        # Thời gian theo định dạng dễ đọc (giống Google Form)
+        submitted_local = timezone.localtime(resp.submitted_at)
+        time_display = submitted_local.strftime("%d/%m/%Y %H:%M:%S")
+        row = [time_display]
+
+        for question in questions:
+            qid = str(question.id)
+            answer = ''
+            if resp.response_data and qid in resp.response_data:
+                value = resp.response_data[qid]
+                if isinstance(value, list):
+                    answer = ' | '.join(str(v) for v in value)
+                else:
+                    answer = str(value)
+            row.append(answer)
+
+        writer.writerow(row)
+
+    return response
+
+
 def get_client_ip(request):
     """Lấy IP address của client"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -500,7 +719,9 @@ def question_add_ajax(request, survey_pk):
             text=data.get('text', ''),
             question_type=data.get('question_type', 'single'),
             order=data.get('order', survey.questions.count() + 1),
-            is_required=data.get('is_required', True)
+            is_required=data.get('is_required', True),
+            subtitle=data.get('subtitle', ''),
+            media_url=data.get('media_url', '')
         )
         
         # Lưu options vào JSONField
@@ -513,10 +734,12 @@ def question_add_ajax(request, survey_pk):
             'question': {
                 'id': question.id,
                 'text': question.text,
-                'question_type': question.question_type,
-                'is_required': question.is_required,
-                'order': question.order,
-                'options': question.options or []
+            'question_type': question.question_type,
+            'is_required': question.is_required,
+            'order': question.order,
+            'options': question.options or [],
+            'subtitle': question.subtitle,
+            'media_url': question.media_url
             }
         })
     except Exception as e:
@@ -538,12 +761,26 @@ def question_update_ajax(request, pk):
         question.question_type = data.get('question_type', question.question_type)
         question.order = data.get('order', question.order)
         question.is_required = data.get('is_required', question.is_required)
+        question.subtitle = data.get('subtitle', question.subtitle)
+        question.media_url = data.get('media_url', question.media_url)
         
         # Cập nhật options nếu có
         if 'choices' in data or 'options' in data:
             options_data = data.get('choices', []) or data.get('options', [])
             question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
-        
+
+        # Cập nhật đáp án đúng cho chế độ Quiz nếu có
+        if 'correct_answers' in data:
+            raw_correct = data.get('correct_answers') or []
+            cleaned = []
+            for idx in raw_correct:
+                try:
+                    i = int(idx)
+                    cleaned.append(i)
+                except (TypeError, ValueError):
+                    continue
+            question.correct_answers = cleaned
+
         question.save()
         
         return JsonResponse({
@@ -551,10 +788,13 @@ def question_update_ajax(request, pk):
             'question': {
                 'id': question.id,
                 'text': question.text,
-                'question_type': question.question_type,
-                'is_required': question.is_required,
-                'order': question.order,
-                'options': question.options or []
+            'question_type': question.question_type,
+            'is_required': question.is_required,
+            'order': question.order,
+            'options': question.options or [],
+            'correct_answers': question.correct_answers or [],
+            'subtitle': question.subtitle,
+            'media_url': question.media_url
             }
         })
     except Exception as e:
@@ -591,6 +831,50 @@ def question_reorder_ajax(request, survey_pk):
             Question.objects.filter(pk=item['id'], survey=survey).update(order=item['order'])
         
         return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def survey_publish_toggle_ajax(request, pk):
+    """Bật/tắt xuất bản khảo sát"""
+    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    try:
+        data = json.loads(request.body or "{}")
+        is_active = bool(data.get('is_active', True))
+        survey.is_active = is_active
+        survey.save(update_fields=['is_active'])
+        return JsonResponse({'success': True, 'is_active': survey.is_active})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def question_image_upload_ajax(request, pk):
+    """Upload ảnh cho câu hỏi và lưu đường dẫn vào media_url"""
+    question = get_object_or_404(Question, pk=pk)
+
+    if question.survey.creator != request.user:
+        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
+
+    image_file = request.FILES.get('image')
+    if not image_file:
+        return JsonResponse({'success': False, 'error': 'Không có file ảnh'}, status=400)
+
+    try:
+        fs = FileSystemStorage(
+            location=settings.MEDIA_ROOT / 'question_images',
+            base_url=settings.MEDIA_URL + 'question_images/'
+        )
+        filename = fs.save(image_file.name, image_file)
+        file_url = fs.url(filename)
+
+        question.media_url = file_url
+        question.save(update_fields=['media_url'])
+
+        return JsonResponse({'success': True, 'url': file_url})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 

@@ -133,3 +133,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Cấu hình gửi mail qua Gmail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'xuanloc9a9@gmail.com'  # Thay bằng Gmail của bạn
+EMAIL_HOST_PASSWORD = 'tjtn aavv hfwy dlmt'  # Thay bằng 16 ký tự App Password vừa lấy (bỏ khoảng trắng nếu muốn)
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Sau khi đăng xuất (kể cả admin), chuyển về trang chủ
+LOGOUT_REDIRECT_URL = '/'

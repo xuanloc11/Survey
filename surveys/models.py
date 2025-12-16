@@ -12,6 +12,7 @@ class Survey(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ngày cập nhật")
     is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
     expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Hết hạn vào")
+    is_quiz = models.BooleanField(default=False, verbose_name="Chế độ Quiz (có đáp án đúng / tính điểm)")
 
     class Meta:
         verbose_name = "Khảo sát"
@@ -27,18 +28,28 @@ class Question(models.Model):
         ('text', 'Câu hỏi tự luận'),
         ('single', 'Chọn một đáp án'),  # Radio
         ('multiple', 'Chọn nhiều đáp án'),  # Checkbox
+        ('section', 'Tiêu đề/phần'),
+        ('description', 'Mô tả'),
+        ('image', 'Hình ảnh'),
+        ('video', 'Video'),
     ]
 
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='questions', verbose_name="Khảo sát")
     text = models.TextField(verbose_name="Nội dung câu hỏi")
-    question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='single',
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, default='single',
                                      verbose_name="Loại câu hỏi")
     order = models.IntegerField(default=0, verbose_name="Thứ tự")
     is_required = models.BooleanField(default=True, verbose_name="Bắt buộc")
+    subtitle = models.TextField(blank=True, default="", verbose_name="Mô tả/Phụ đề")
+    media_url = models.TextField(blank=True, default="", verbose_name="Media URL (ảnh/video)")
 
     # THAY ĐỔI 1: Lưu các lựa chọn vào JSONField thay vì bảng Choice riêng
     # Cấu trúc dữ liệu: ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C"]
     options = models.JSONField(default=list, blank=True, null=True, verbose_name="Các lựa chọn (JSON)")
+    # Danh sách index các lựa chọn đúng khi ở chế độ Quiz, ví dụ [0, 2]
+    correct_answers = models.JSONField(default=list, blank=True, null=True, verbose_name="Các đáp án đúng (JSON)")
+    # Số điểm cho câu hỏi này trong chế độ Quiz
+    score = models.IntegerField(default=1, verbose_name="Điểm cho câu hỏi")
 
     class Meta:
         verbose_name = "Câu hỏi"

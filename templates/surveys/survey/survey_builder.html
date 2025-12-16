@@ -26,27 +26,48 @@
             {% endif %}
             <div class="d-flex gap-3 align-items-center">
                 <span class="badge bg-secondary">{{ survey.responses.count }} phản hồi</span>
-                {% if survey.is_active %}
-                <span class="badge bg-success">Đang hoạt động</span>
-                {% else %}
-                <span class="badge bg-secondary">Đã tắt</span>
-                {% endif %}
-                {% if can_edit %}
-                <div class="ms-auto">
-                    <a href="{% url 'surveys:survey_edit' survey.pk %}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-gear"></i> Cài đặt
-                    </a>
-                    <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-sm btn-primary">
-                        <i class="bi bi-graph-up"></i> Xem kết quả
-                    </a>
-                </div>
-                {% endif %}
+                <span id="surveyStatusBadge" class="badge {% if survey.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                    {% if survey.is_active %}Đang hoạt động{% else %}Đã tắt{% endif %}
+                </span>
             </div>
         </div>
     </div>
 
-    <!-- Questions Container (Sortable) -->
-    <div id="questions-container" data-survey-id="{{ survey.pk }}">
+    <!-- Tab Navigation -->
+    {% if can_edit %}
+    <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
+        <div class="card-body p-0">
+            <ul class="nav nav-tabs border-0" id="surveyTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="questions-tab" data-bs-toggle="tab" data-bs-target="#questions-pane" type="button" role="tab">
+                        <i class="bi bi-question-circle"></i> Câu hỏi
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-pane" type="button" role="tab">
+                        <i class="bi bi-graph-up"></i> Kết quả
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="export-tab" data-bs-toggle="tab" data-bs-target="#export-pane" type="button" role="tab">
+                        <i class="bi bi-file-earmark-arrow-down"></i> Xuất file
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button" role="tab">
+                        <i class="bi bi-gear"></i> Cài đặt
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="surveyTabContent">
+        <!-- Tab: Câu hỏi -->
+        <div class="tab-pane fade show active" id="questions-pane" role="tabpanel">
+            <!-- Questions Container (Sortable) -->
+            <div id="questions-container" data-survey-id="{{ survey.pk }}">
         {% for question in questions %}
         <div class="question-item" data-question-id="{{ question.id }}" data-order="{{ question.order }}">
             <div class="question-header">
@@ -58,6 +79,10 @@
                     <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Tự luận</option>
                     <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Chọn một</option>
                     <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
+                    <option value="section" {% if question.question_type == 'section' %}selected{% endif %}>Tiêu đề/Phần</option>
+                    <option value="description" {% if question.question_type == 'description' %}selected{% endif %}>Mô tả</option>
+                    <option value="image" {% if question.question_type == 'image' %}selected{% endif %}>Hình ảnh</option>
+                    <option value="video" {% if question.question_type == 'video' %}selected{% endif %}>Video</option>
                 </select>
                 <div class="question-actions">
                     <button class="btn-icon" onclick="toggleRequired({{ question.id }})" title="Bắt buộc">
@@ -69,41 +94,264 @@
                 </div>
             </div>
             
-            {% if question.question_type != 'text' %}
-            <div class="choices-container" data-question-id="{{ question.id }}">
-                {% for choice in question.choices.all %}
-                <div class="choice-item" data-choice-id="{{ choice.id }}">
-                    <i class="bi bi-{% if question.question_type == 'single' %}circle{% else %}square{% endif %}"></i>
-                    <input type="text" class="choice-input" value="{{ choice.text }}" 
-                           placeholder="Lựa chọn" data-choice-id="{{ choice.id }}">
-                    <button class="btn-icon" onclick="deleteChoice({{ choice.id }})">
-                        <i class="bi bi-x"></i>
+            {% if question.question_type == 'single' or question.question_type == 'multiple' %}
+                <div class="choices-container" data-question-id="{{ question.id }}">
+                    {% for choice in question.options %}
+                    <div class="choice-item" data-choice-id="{{ forloop.counter0 }}">
+                        <i class="bi bi-{% if question.question_type == 'single' %}circle{% else %}square{% endif %}"></i>
+                        <input type="text" class="choice-input" value="{{ choice }}" 
+                               placeholder="Lựa chọn" data-choice-id="{{ forloop.counter0 }}">
+                        {% if survey.is_quiz %}
+                        <button class="btn-icon correct-toggle {% if question.correct_answers and forloop.counter0 in question.correct_answers %}text-warning{% endif %}"
+                                type="button"
+                                data-choice-index="{{ forloop.counter0 }}"
+                                onclick="toggleCorrectAnswer({{ question.id }}, {{ forloop.counter0 }}, this)"
+                                title="Đáp án đúng">
+                            <i class="bi bi-star-fill"></i>
+                        </button>
+                        {% endif %}
+                        <button class="btn-icon" onclick="deleteChoice({{ question.id }}, {{ forloop.counter0 }})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    <button class="btn btn-sm btn-link p-0 mt-2" onclick="addChoice({{ question.id }})">
+                        <i class="bi bi-plus"></i> Thêm lựa chọn
                     </button>
                 </div>
-                {% endfor %}
-                <button class="btn btn-sm btn-link p-0 mt-2" onclick="addChoice({{ question.id }})">
-                    <i class="bi bi-plus"></i> Thêm lựa chọn
-                </button>
+            {% endif %}
+            
+            {% if question.question_type == 'description' %}
+            <div class="mt-2 text-muted">{{ question.subtitle }}</div>
+            {% elif question.question_type == 'section' %}
+            <div class="mt-2 fw-semibold">{{ question.subtitle }}</div>
+            {% elif question.question_type == 'image' and question.media_url %}
+            <div class="mt-3">
+                <img src="{{ question.media_url }}" alt="{{ question.subtitle|default:'Image' }}" class="img-fluid rounded">
+                {% if question.subtitle %}<div class="small text-muted mt-1">{{ question.subtitle }}</div>{% endif %}
+            </div>
+            {% elif question.question_type == 'video' and question.media_url %}
+            <div class="mt-3 ratio ratio-16x9">
+                <iframe src="{{ question.media_url }}" allowfullscreen title="{{ question.subtitle|default:'Video' }}"></iframe>
+            </div>
+            {% if question.subtitle %}<div class="small text-muted mt-1">{{ question.subtitle }}</div>{% endif %}
+            {% endif %}
+        </div>
+            {% endfor %}
+            </div>
+
+            {% if can_edit %}
+            <!-- Builder Toolbar giống Google Forms -->
+            <div class="position-fixed" style="top: 140px; right: 40px; z-index: 1030;">
+                <div class="bg-white shadow rounded-3 d-flex flex-column align-items-center py-3 px-2 gap-3">
+                    <button type="button" class="btn btn-light p-2" title="Thêm câu hỏi trắc nghiệm" onclick="showAddQuestionForm('single')">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                    <button type="button" class="btn btn-light p-2" title="Thêm mô tả / văn bản" onclick="showAddQuestionForm('description')">
+                        <span class="fw-bold">Tt</span>
+                    </button>
+                    <button type="button" class="btn btn-light p-2" title="Thêm hình ảnh" onclick="showAddQuestionForm('image')">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <button type="button" class="btn btn-light p-2" title="Thêm video" onclick="showAddQuestionForm('video')">
+                        <i class="bi bi-play-btn"></i>
+                    </button>
+                    <button type="button" class="btn btn-light p-2" title="Thêm phần mới" onclick="showAddQuestionForm('section')">
+                        <i class="bi bi-segmented-nav"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Preview/Submit Button -->
+            {% if survey.is_active and not is_expired %}
+            <div class="text-center mt-4">
+                <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-eye"></i> Xem trước khảo sát
+                </a>
             </div>
             {% endif %}
         </div>
-        {% endfor %}
-    </div>
 
-    <!-- Add Question Button -->
-    {% if can_edit %}
-    <div class="add-question-btn" onclick="showAddQuestionForm()">
-        <i class="bi bi-plus-circle" style="font-size: 24px; color: #1a73e8;"></i>
-        <div class="mt-2" style="color: #1a73e8; font-weight: 500;">Thêm câu hỏi</div>
-    </div>
-    {% endif %}
+        <!-- Tab: Kết quả -->
+        <div class="tab-pane fade" id="results-pane" role="tabpanel">
+            <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
+                <div class="card-body">
+                    <h4 class="mb-4">
+                        <i class="bi bi-graph-up"></i> Kết quả khảo sát
+                    </h4>
+                    <div class="row text-center mb-4">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-number">{{ total_responses|default:0 }}</div>
+                                <small class="text-muted">Tổng số phản hồi</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-number">{{ questions.count }}</div>
+                                <small class="text-muted">Số câu hỏi</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-number">{{ survey.responses.count }}</div>
+                                <small class="text-muted">Người tham gia</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Preview/Submit Button -->
-    {% if survey.is_active and not is_expired %}
-    <div class="text-center mt-4">
-        <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-lg">
-            <i class="bi bi-eye"></i> Xem trước khảo sát
-        </a>
+            <!-- Statistics -->
+            {% if stats %}
+            {% for stat in stats %}
+            <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        Câu {{ forloop.counter }}: {{ stat.question.text }}
+                        <span class="badge bg-secondary">{{ stat.question.get_question_type_display }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if stat.type == 'text' %}
+                    <p class="text-muted">Tổng số câu trả lời: {{ stat.total }}</p>
+                    <div class="list-group">
+                        {% for answer in stat.answers %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-start">
+                                <span class="badge bg-primary me-2">{{ forloop.counter }}</span>
+                                <div class="flex-grow-1">{{ answer }}</div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="alert alert-info">Chưa có câu trả lời nào</div>
+                        {% endfor %}
+                    </div>
+                    {% if stat.total > 10 %}
+                    <p class="text-muted mt-2">
+                        <small>Hiển thị 10 câu trả lời đầu tiên trong tổng số {{ stat.total }} câu trả lời</small>
+                    </p>
+                    {% endif %}
+                    
+                    {% else %}
+                    <p class="text-muted mb-3">Tổng số phản hồi: {{ stat.total }}</p>
+                    {% for choice_stat in stat.choices %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>{{ choice_stat.option }}</span>
+                            <span class="fw-bold">{{ choice_stat.count }} ({{ choice_stat.percentage }}%)</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ choice_stat.percentage }}%"
+                                 aria-valuenow="{{ choice_stat.percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ choice_stat.percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Chưa có dữ liệu kết quả nào.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab: Xuất file -->
+        <div class="tab-pane fade" id="export-pane" role="tabpanel">
+            <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
+                <div class="card-body">
+                    <h4 class="mb-3">
+                        <i class="bi bi-file-earmark-arrow-down"></i> Xuất dữ liệu khảo sát
+                    </h4>
+                    <p class="text-muted">
+                        Tải xuống toàn bộ câu trả lời của khảo sát này dưới dạng file CSV. 
+                        Bạn có thể mở file bằng Excel, Google Sheets hoặc các công cụ phân tích dữ liệu khác.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a href="{% url 'surveys:survey_export_csv' survey.pk %}" class="btn btn-success">
+                            <i class="bi bi-filetype-csv"></i> Tải file CSV
+                        </a>
+                        <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-outline-primary">
+                            <i class="bi bi-graph-up"></i> Xem trang kết quả chi tiết
+                        </a>
+                    </div>
+                    <hr>
+                    <small class="text-muted">
+                        Lưu ý: dữ liệu trong file sẽ ẩn danh người dùng không đăng nhập, chỉ hiển thị IP hoặc để trống nếu không có.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Cài đặt -->
+        <div class="tab-pane fade" id="settings-pane" role="tabpanel">
+            <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
+                <div class="card-body">
+                    <h4 class="mb-4">
+                        <i class="bi bi-gear"></i> Cài đặt khảo sát
+                    </h4>
+                    <form method="post" action="{% url 'surveys:survey_edit' survey.pk %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_title" class="form-label">Tiêu đề</label>
+                            <input type="text" class="form-control" id="id_title" name="title" value="{{ survey.title }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Mô tả</label>
+                            <textarea class="form-control" id="id_description" name="description" rows="4">{{ survey.description }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_header_image" class="form-label">Ảnh tiêu đề</label>
+                            {% if survey.header_image %}
+                            <div class="mb-2">
+                                <img src="{{ survey.header_image.url }}" alt="Ảnh hiện tại" class="img-thumbnail" style="max-height: 150px;">
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="id_header_image" name="header_image" accept="image/*">
+                            <small class="text-muted">Để trống nếu không muốn thay đổi</small>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="id_is_active" name="is_active" {% if survey.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">
+                                    Đang hoạt động
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="id_is_quiz" name="is_quiz" {% if survey.is_quiz %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_quiz">
+                                    Sử dụng chế độ Quiz (có đáp án đúng, chấm điểm)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_expires_at" class="form-label">Hết hạn vào</label>
+                            <input type="datetime-local" class="form-control" id="id_expires_at" name="expires_at" 
+                                   value="{% if survey.expires_at %}{{ survey.expires_at|date:'Y-m-d\TH:i' }}{% endif %}">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Lưu thay đổi
+                            </button>
+                            <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-x"></i> Hủy
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
     {% endif %}
 </div>
@@ -116,7 +364,7 @@
                 <h5 class="modal-title">Thêm câu hỏi mới</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+                <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Nội dung câu hỏi</label>
                     <input type="text" class="form-control" id="new-question-text" placeholder="Nhập câu hỏi">
@@ -127,7 +375,23 @@
                         <option value="text">Tự luận</option>
                         <option value="single">Chọn một</option>
                         <option value="multiple">Chọn nhiều</option>
+                        <option value="section">Tiêu đề/Phần</option>
+                        <option value="description">Mô tả</option>
+                        <option value="image">Hình ảnh</option>
+                        <option value="video">Video</option>
                     </select>
+                </div>
+                <div class="mb-3" id="new-question-subtitle" style="display:none;">
+                    <label class="form-label">Mô tả/Phụ đề</label>
+                    <textarea class="form-control" rows="2" placeholder="Nhập mô tả hoặc phụ đề"></textarea>
+                </div>
+                <div class="mb-3" id="new-question-media" style="display:none;">
+                    <label class="form-label">Link video (YouTube embed link)</label>
+                    <input type="text" class="form-control" id="new-question-media-link" placeholder="Dán link video (nếu là loại Video)">
+                </div>
+                <div class="mb-3" id="new-question-image-file" style="display:none;">
+                    <label class="form-label">Ảnh từ máy tính</label>
+                    <input type="file" class="form-control" id="new-question-image-input" accept="image/*">
                 </div>
                 <div id="new-question-choices" style="display: none;">
                     <label class="form-label">Lựa chọn</label>
@@ -156,8 +420,9 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
-const surveyId = {{ survey.pk }};
+const surveyId = Number('{{ survey.pk }}');
 const csrfToken = '{{ csrf_token }}';
+const surveyIsQuiz = {{ survey.is_quiz|yesno:'true,false' }};
 
 // Initialize Sortable for drag & drop
 {% if can_edit %}
@@ -201,12 +466,35 @@ document.querySelectorAll('.choice-input').forEach(input => {
     });
 });
 
-function showAddQuestionForm() {
+function showAddQuestionForm(defaultType) {
     const modal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
-    document.getElementById('new-question-type').addEventListener('change', function() {
-        document.getElementById('new-question-choices').style.display = 
-            this.value === 'text' ? 'none' : 'block';
-    });
+    const typeSelect = document.getElementById('new-question-type');
+    const choicesBlock = document.getElementById('new-question-choices');
+    const subtitleBlock = document.getElementById('new-question-subtitle');
+    const mediaBlock = document.getElementById('new-question-media');
+    const imageFileBlock = document.getElementById('new-question-image-file');
+    subtitleBlock.style.display = 'none';
+    mediaBlock.style.display = 'none';
+    imageFileBlock.style.display = 'none';
+    choicesBlock.style.display = 'none';
+
+    // Đặt sẵn loại khi bấm icon trên toolbar
+    if (defaultType) {
+        typeSelect.value = defaultType;
+    } else {
+        typeSelect.value = 'single';
+    }
+    const applyTypeUI = function(type) {
+        choicesBlock.style.display = (type === 'single' || type === 'multiple') ? 'block' : 'none';
+        subtitleBlock.style.display = (type === 'description' || type === 'section' || type === 'image' || type === 'video') ? 'block' : 'none';
+        mediaBlock.style.display = (type === 'video') ? 'block' : 'none';
+        imageFileBlock.style.display = (type === 'image') ? 'block' : 'none';
+    };
+    applyTypeUI(typeSelect.value);
+
+    typeSelect.onchange = function() {
+        applyTypeUI(this.value);
+    };
     modal.show();
 }
 
@@ -227,6 +515,10 @@ function addNewChoiceInput() {
 function saveNewQuestion() {
     const text = document.getElementById('new-question-text').value;
     const type = document.getElementById('new-question-type').value;
+    const subtitle = document.querySelector('#new-question-subtitle textarea')?.value || '';
+    const mediaUrl = document.getElementById('new-question-media-link')?.value || '';
+    const imageInput = document.getElementById('new-question-image-input');
+    const imageFile = imageInput && imageInput.files.length ? imageInput.files[0] : null;
     const choices = Array.from(document.querySelectorAll('.choice-input-new'))
         .map(input => input.value.trim())
         .filter(v => v);
@@ -246,15 +538,40 @@ function saveNewQuestion() {
             text: text,
             question_type: type,
             choices: choices,
-            is_required: true
+            is_required: true,
+            subtitle: subtitle,
+            media_url: mediaUrl
         })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
+        if (!data.success) {
             alert('Lỗi: ' + data.error);
+            return;
+        }
+
+        // Nếu là loại hình ảnh và có file, upload tiếp
+        if (type === 'image' && imageFile) {
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            fetch(`/api/question/${data.question.id}/upload-image/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(imgData => {
+                if (!imgData.success) {
+                    alert('Upload ảnh lỗi: ' + (imgData.error || 'Không rõ'));
+                } else {
+                    location.reload();
+                }
+            })
+            .catch(() => alert('Không thể upload ảnh, vui lòng thử lại.'));
+        } else {
+            location.reload();
         }
     });
 }
@@ -280,7 +597,7 @@ function updateQuestionType(questionId, type) {
     const questionItem = document.querySelector(`[data-question-id="${questionId}"]`);
     const choicesContainer = questionItem.querySelector('.choices-container');
     
-    if (type === 'text') {
+    if (type !== 'single' && type !== 'multiple') {
         if (choicesContainer) {
             choicesContainer.remove();
         }
@@ -325,12 +642,17 @@ function addChoice(questionId) {
         if (data.success) {
             const choiceItem = document.createElement('div');
             choiceItem.className = 'choice-item';
-            choiceItem.dataset.choiceId = data.choice.id;
+            choiceItem.dataset.choiceId = data.choice.index;
             choiceItem.innerHTML = `
                 <i class="bi bi-${questionType === 'single' ? 'circle' : 'square'}"></i>
                 <input type="text" class="choice-input" value="${data.choice.text}" 
-                       placeholder="Lựa chọn" data-choice-id="${data.choice.id}">
-                <button class="btn-icon" onclick="deleteChoice(${data.choice.id})">
+                       placeholder="Lựa chọn" data-choice-id="${data.choice.index}">
+                ${surveyIsQuiz ? `
+                <button class="btn-icon correct-toggle" type="button" data-choice-index="${data.choice.index}"
+                        onclick="toggleCorrectAnswer(${questionId}, ${data.choice.index}, this)" title="Đáp án đúng">
+                    <i class="bi bi-star-fill"></i>
+                </button>` : ''}
+                <button class="btn-icon" onclick="deleteChoice(${questionId}, ${data.choice.index})">
                     <i class="bi bi-x"></i>
                 </button>
             `;
@@ -350,6 +672,26 @@ function addChoice(questionId) {
     });
 }
 
+// Toggle correct answer for Quiz mode
+function toggleCorrectAnswer(questionId, choiceIndex, btn) {
+    if (!surveyIsQuiz) return;
+
+    btn.classList.toggle('text-warning');
+    const questionItem = btn.closest('.question-item');
+    const toggles = questionItem.querySelectorAll('.correct-toggle');
+    const correct = [];
+    toggles.forEach(el => {
+        if (el.classList.contains('text-warning')) {
+            const idx = parseInt(el.dataset.choiceIndex, 10);
+            if (!Number.isNaN(idx)) {
+                correct.push(idx);
+            }
+        }
+    });
+
+    updateQuestion(questionId, {correct_answers: correct});
+}
+
 function updateChoice(choiceId, text) {
     if (!choiceId) return;
     // Update choice via question update API
@@ -363,24 +705,25 @@ function updateChoice(choiceId, text) {
     updateQuestion(questionId, {choices: choicesData});
 }
 
-function deleteChoice(choiceId) {
-    if (!choiceId) {
+function deleteChoice(questionId, choiceIndex) {
+    if (choiceIndex === undefined || choiceIndex === null) {
         event.target.closest('.choice-item').remove();
         return;
     }
     
     if (confirm('Bạn có chắc muốn xóa lựa chọn này?')) {
-        fetch(`/api/choice/${choiceId}/delete/`, {
+        fetch(`/api/choice/${questionId}/delete/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
-            }
+            },
+            body: JSON.stringify({index: choiceIndex})
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.querySelector(`[data-choice-id="${choiceId}"]`).remove();
+                document.querySelector(`[data-choice-id="${choiceIndex}"]`).remove();
             }
         });
     }
