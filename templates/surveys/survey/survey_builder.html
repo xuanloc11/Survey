@@ -140,28 +140,28 @@
             {% endfor %}
             </div>
 
-            {% if can_edit %}
-            <!-- Builder Toolbar giống Google Forms -->
-            <div class="position-fixed" style="top: 140px; right: 40px; z-index: 1030;">
-                <div class="bg-white shadow rounded-3 d-flex flex-column align-items-center py-3 px-2 gap-3">
-                    <button type="button" class="btn btn-light p-2" title="Thêm câu hỏi trắc nghiệm" onclick="showAddQuestionForm('single')">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
-                    <button type="button" class="btn btn-light p-2" title="Thêm mô tả / văn bản" onclick="showAddQuestionForm('description')">
-                        <span class="fw-bold">Tt</span>
-                    </button>
-                    <button type="button" class="btn btn-light p-2" title="Thêm hình ảnh" onclick="showAddQuestionForm('image')">
-                        <i class="bi bi-image"></i>
-                    </button>
-                    <button type="button" class="btn btn-light p-2" title="Thêm video" onclick="showAddQuestionForm('video')">
-                        <i class="bi bi-play-btn"></i>
-                    </button>
-                    <button type="button" class="btn btn-light p-2" title="Thêm phần mới" onclick="showAddQuestionForm('section')">
-                        <i class="bi bi-segmented-nav"></i>
-                    </button>
-                </div>
-            </div>
-            {% endif %}
+    {% if can_edit %}
+    <!-- Builder Toolbar giống Google Forms -->
+    <div class="builder-toolbar position-fixed" style="top: 140px; right: 40px; z-index: 1030;">
+        <div class="bg-white shadow rounded-3 d-flex flex-column align-items-center py-3 px-2 gap-3">
+            <button type="button" class="btn btn-light p-2" title="Thêm câu hỏi trắc nghiệm" onclick="showAddQuestionForm('single')">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+            <button type="button" class="btn btn-light p-2" title="Thêm mô tả / văn bản" onclick="showAddQuestionForm('description')">
+                <span class="fw-bold">Tt</span>
+            </button>
+            <button type="button" class="btn btn-light p-2" title="Thêm hình ảnh" onclick="showAddQuestionForm('image')">
+                <i class="bi bi-image"></i>
+            </button>
+            <button type="button" class="btn btn-light p-2" title="Thêm video" onclick="showAddQuestionForm('video')">
+                <i class="bi bi-play-btn"></i>
+            </button>
+            <button type="button" class="btn btn-light p-2" title="Thêm phần mới" onclick="showAddQuestionForm('section')">
+                <i class="bi bi-segmented-nav"></i>
+            </button>
+        </div>
+    </div>
+    {% endif %}
 
             <!-- Preview/Submit Button -->
             {% if survey.is_active and not is_expired %}

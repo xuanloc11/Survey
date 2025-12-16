@@ -94,6 +94,92 @@ body {
     font-weight: 500;
 }
 
+/* ===== Responsive mobile ===== */
+@media (max-width: 768px) {
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+
+    .main-container {
+        margin: 1rem;
+        padding: 1.25rem;
+        min-height: auto;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-header {
+        padding: 1rem;
+        font-size: 1rem;
+    }
+
+    .form-control,
+    .form-select {
+        padding: 0.65rem;
+        font-size: 0.95rem;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-success,
+    .btn-warning,
+    .btn-danger {
+        width: 100%;
+        margin-top: 0.35rem;
+    }
+
+    /* Auth pages */
+    .auth-container {
+        max-width: 100%;
+        margin: 1.5rem 1rem;
+    }
+
+    .auth-card {
+        padding: 1.5rem;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+
+    .auth-header h2 {
+        font-size: 20px;
+    }
+
+    .auth-header p {
+        font-size: 13px;
+    }
+
+    /* Survey builder tweaks */
+    .question-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .question-text {
+        min-width: 100%;
+    }
+
+    .choices-container {
+        padding-left: 0;
+    }
+
+    .choice-item {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* Navbar spacing */
+    .navbar .container,
+    .navbar .container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+}
+
 .form-control,
 .form-select {
     border-radius: 10px;
