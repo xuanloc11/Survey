@@ -7,12 +7,13 @@ from .models import Survey, Question, Response
 class SurveyForm(forms.ModelForm):
     class Meta:
         model = Survey
-        fields = ['title', 'description', 'header_image', 'is_active', 'expires_at']
+        fields = ['title', 'description', 'header_image', 'is_active', 'is_quiz', 'expires_at']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập tiêu đề khảo sát'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Nhập mô tả khảo sát'}),
             'header_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_quiz': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'expires_at': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
         }
         labels = {
@@ -20,6 +21,7 @@ class SurveyForm(forms.ModelForm):
             'description': 'Mô tả',
             'header_image': 'Ảnh tiêu đề (tùy chọn)',
             'is_active': 'Đang hoạt động',
+            'is_quiz': 'Sử dụng chế độ Quiz (có đáp án đúng, chấm điểm)',
             'expires_at': 'Hết hạn vào',
         }
 
@@ -119,3 +121,41 @@ class UserRegisterForm(UserCreationForm):
             raise forms.ValidationError("Email này đã được sử dụng!")
         return email
 
+
+class UserProfileForm(forms.ModelForm):
+    """Form cập nhật thông tin cá nhân."""
+
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email của bạn'})
+    )
+    first_name = forms.CharField(
+        max_length=30,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tên'})
+    )
+    last_name = forms.CharField(
+        max_length=30,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ'})
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+        }
+        labels = {
+            'username': 'Tên đăng nhập',
+            'email': 'Email',
+            'first_name': 'Tên',
+            'last_name': 'Họ',
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        qs = User.objects.filter(email=email).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("Email này đã được sử dụng!")
+        return email

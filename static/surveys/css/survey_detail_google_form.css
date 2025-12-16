@@ -147,4 +147,38 @@
     margin-top: 16px;
 }
 
+/* Tab Navigation Styles */
+#surveyTabs .nav-link {
+    color: #5f6368;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 12px 24px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+#surveyTabs .nav-link:hover {
+    color: #1a73e8;
+    border-bottom-color: #dadce0;
+}
+
+#surveyTabs .nav-link.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    background: transparent;
+}
+
+/* Stat Card Styles */
+.stat-card {
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 36px;
+    font-weight: 600;
+    color: #1a73e8;
+    margin-bottom: 8px;
+}
+
 

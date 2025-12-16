@@ -65,6 +65,13 @@
                             {{ form.is_active.label }}
                         </label>
                     </div>
+
+                    <div class="form-check form-switch mt-2">
+                        {{ form.is_quiz }}
+                        <label class="form-check-label" for="{{ form.is_quiz.id_for_label }}">
+                            {{ form.is_quiz.label }}
+                        </label>
+                    </div>
                 </div>
             </div>
 
