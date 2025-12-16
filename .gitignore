@@ -1,1 +1,13 @@
+# Bỏ qua file môi trường (chứa mật khẩu)
 .env
+venv/
+my_env/
+
+# Bỏ qua file rác Python (QUAN TRỌNG)
+__pycache__/
+*.pyc
+*.pyo
+
+
+# Bỏ qua file media
+/media/
