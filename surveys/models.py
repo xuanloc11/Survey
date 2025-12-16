@@ -43,12 +43,8 @@ class Question(models.Model):
     subtitle = models.TextField(blank=True, default="", verbose_name="Mô tả/Phụ đề")
     media_url = models.TextField(blank=True, default="", verbose_name="Media URL (ảnh/video)")
 
-    # THAY ĐỔI 1: Lưu các lựa chọn vào JSONField thay vì bảng Choice riêng
-    # Cấu trúc dữ liệu: ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C"]
     options = models.JSONField(default=list, blank=True, null=True, verbose_name="Các lựa chọn (JSON)")
-    # Danh sách index các lựa chọn đúng khi ở chế độ Quiz, ví dụ [0, 2]
     correct_answers = models.JSONField(default=list, blank=True, null=True, verbose_name="Các đáp án đúng (JSON)")
-    # Số điểm cho câu hỏi này trong chế độ Quiz
     score = models.IntegerField(default=1, verbose_name="Điểm cho câu hỏi")
 
     class Meta:
@@ -59,17 +55,12 @@ class Question(models.Model):
     def __str__(self):
         return self.text[:50]
 
-
-# Đã xóa class Choice
-
 class Response(models.Model):
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='responses', verbose_name="Khảo sát")
     respondent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Người trả lời")
     submitted_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian gửi")
     ip_address = models.GenericIPAddressField(null=True, blank=True)
 
-    # THAY ĐỔI 2: Lưu toàn bộ câu trả lời vào 1 JSON object duy nhất
-    # Cấu trúc: { "question_id_1": "Giá trị trả lời", "question_id_2": ["A", "B"] }
     response_data = models.JSONField(default=dict, verbose_name="Dữ liệu trả lời")
 
     class Meta:
@@ -79,5 +70,3 @@ class Response(models.Model):
 
     def __str__(self):
         return f"Response #{self.id} for {self.survey.title}"
-
-# Đã xóa class Answer

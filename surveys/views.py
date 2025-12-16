@@ -104,6 +104,91 @@ def activate_account(request, uidb64, token):
     return redirect('surveys:login')
 
 
+def password_reset_request(request):
+    """Form nhập email để nhận link đặt lại mật khẩu"""
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        if not email:
+            messages.error(request, 'Vui lòng nhập email đã đăng ký.')
+        else:
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                user = None
+
+            if user is None:
+                messages.error(request, 'Không tìm thấy tài khoản nào với email này.')
+            else:
+                uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                reset_link = request.build_absolute_uri(
+                    reverse('surveys:password_reset_confirm', kwargs={'uidb64': uidb64, 'token': token})
+                )
+
+                subject = 'Đặt lại mật khẩu HCMUTE Survey'
+                message = (
+                    f'Xin chào {user.username},\n\n'
+                    'Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản HCMUTE Survey.\n'
+                    'Vui lòng nhấp vào liên kết dưới đây để đặt mật khẩu mới:\n\n'
+                    f'{reset_link}\n\n'
+                    'Nếu bạn không yêu cầu, hãy bỏ qua email này.\n\n'
+                    'Trân trọng,\n'
+                    'HCMUTE Survey'
+                )
+
+                try:
+                    send_mail(
+                        subject=subject,
+                        message=message,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[user.email],
+                        fail_silently=False,
+                    )
+                    messages.success(
+                        request,
+                        'Đã gửi email hướng dẫn đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.'
+                    )
+                    return redirect('surveys:login')
+                except Exception:
+                    messages.error(
+                        request,
+                        'Hiện không gửi được email đặt lại mật khẩu. Vui lòng thử lại sau hoặc liên hệ quản trị viên.'
+                    )
+
+    return render(request, 'auth/password_reset_request.html')
+
+
+def password_reset_confirm(request, uidb64, token):
+    """Đặt mật khẩu mới từ link trong email"""
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is None or not default_token_generator.check_token(user, token):
+        messages.error(request, 'Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.')
+        return redirect('surveys:login')
+
+    if request.method == 'POST':
+        password1 = request.POST.get('password1', '')
+        password2 = request.POST.get('password2', '')
+
+        if not password1 or not password2:
+            messages.error(request, 'Vui lòng nhập đầy đủ mật khẩu mới.')
+        elif password1 != password2:
+            messages.error(request, 'Mật khẩu nhập lại không khớp.')
+        elif len(password1) < 6:
+            messages.error(request, 'Mật khẩu phải có ít nhất 6 ký tự.')
+        else:
+            user.set_password(password1)
+            user.save()
+            messages.success(request, 'Đã đặt lại mật khẩu thành công. Bây giờ bạn có thể đăng nhập.')
+            return redirect('surveys:login')
+
+    return render(request, 'auth/password_reset_confirm.html', {'uidb64': uidb64, 'token': token})
+
+
 def login_view(request):
     """Trang đăng nhập"""
     if request.user.is_authenticated:
