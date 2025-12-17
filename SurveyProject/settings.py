@@ -162,5 +162,14 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 DEFAULT_FROM_EMAIL = 'HCMUTE Survey <help@survey.xloc.id.vn>'
 
+# Session settings (cho cả người dùng ẩn danh làm khảo sát)
+SESSION_COOKIE_NAME = 'survey_sessionid'
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 ngày
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+# Để False cho môi trường dev localhost; bật True khi dùng HTTPS prod
+SESSION_COOKIE_SECURE = False
+
 
 LOGOUT_REDIRECT_URL = '/'

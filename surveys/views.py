@@ -14,6 +14,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.urls import reverse
+from uuid import uuid4
 import json
 import csv
 from .models import Survey, Question, Response
@@ -603,6 +604,13 @@ def survey_take(request, pk):
     """Trang làm khảo sát"""
     survey = get_object_or_404(Survey, pk=pk, is_active=True)
     session_key = f'survey_access_{survey.id}'
+    done_session_key = f'survey_done_{survey.id}'
+
+    # Đảm bảo luôn có session cho khách
+    if not request.session.session_key:
+        request.session.create()
+    if 'anon_session_id' not in request.session:
+        request.session['anon_session_id'] = uuid4().hex
     
     # Whitelist email (nếu có)
     whitelist_raw = survey.whitelist_emails or ""
@@ -637,11 +645,8 @@ def survey_take(request, pk):
         messages.error(request, 'Khảo sát này đã hết hạn!')
         return redirect('surveys:survey_detail', pk=pk)
     
-    # Kiểm tra whitelist email (chỉ áp dụng cho user đăng nhập)
-    if whitelist:
-        if not request.user.is_authenticated:
-            messages.error(request, 'Chỉ người có email trong whitelist mới được tham gia. Vui lòng đăng nhập.')
-            return redirect('surveys:login')
+    # Kiểm tra whitelist email (chỉ áp dụng cho user đăng nhập; khách vẫn được tham gia)
+    if whitelist and request.user.is_authenticated:
         user_email = (request.user.email or '').lower()
         if user_email not in whitelist and request.user != survey.creator:
             messages.error(request, 'Email của bạn không nằm trong whitelist tham gia khảo sát.')
@@ -657,7 +662,10 @@ def survey_take(request, pk):
             else:
                 return redirect('surveys:survey_detail', pk=pk)
     else:
-        # Người dùng không đăng nhập: giới hạn theo IP (1 lần / khảo sát)
+        # Người dùng không đăng nhập: giới hạn theo session + IP (1 lần / khảo sát)
+        if request.session.get(done_session_key):
+            messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
+            return redirect('surveys:survey_detail', pk=pk)
         client_ip = get_client_ip(request)
         has_responded_ip = Response.objects.filter(
             survey=survey,
@@ -728,6 +736,8 @@ def survey_take(request, pk):
                 ip_address=get_client_ip(request),
                 response_data=response_data
             )
+            # Ghi nhận vào session để chặn gửi lại (khách)
+            request.session[done_session_key] = True
             
             messages.success(request, 'Cảm ơn bạn đã tham gia khảo sát!')
             if request.user == survey.creator:
