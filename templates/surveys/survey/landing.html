@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}HCMUTE Survey - Landing{% endblock %}
+{% block body_class %}landing-body{% endblock %}
+
+{% block content %}
+<div class="landing-hero">
+    <div class="row align-items-center">
+        <div class="col-lg-7">
+            <p class="eyebrow mb-2">Nền tảng khảo sát hiện đại</p>
+            <h1 class="display-5 fw-bold mb-3">Thiết kế, chia sẻ và thu thập phản hồi chỉ trong vài phút.</h1>
+            <p class="lead text-white-50 mb-4">
+                Trang chủ giờ đây là landing page giới thiệu. Nhấn "Vào khảo sát" để chuyển tới danh sách khảo sát công khai và bắt đầu trả lời ngay.
+            </p>
+            <div class="d-flex flex-wrap gap-3 mb-4">
+                <a href="{% url 'surveys:survey_explore' %}" class="btn btn-light btn-lg px-4">
+                    <i class="bi bi-play-circle"></i> Vào khảo sát
+                </a>
+                <a href="{% url 'surveys:survey_create' %}" class="btn btn-outline-light btn-lg px-4">
+                    <i class="bi bi-magic"></i> Tạo khảo sát của bạn
+                </a>
+            </div>
+            <div class="landing-metrics">
+                <div class="metric-card">
+                    <div class="metric-value">{{ total_surveys }}</div>
+                    <div class="metric-label">Khảo sát đang mở</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{{ total_responses }}</div>
+                    <div class="metric-label">Phản hồi đã thu thập</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">24/7</div>
+                    <div class="metric-label">Truy cập mọi lúc</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="preview-card">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <div class="text-muted small">Bản xem trước</div>
+                        <div class="fw-semibold">Khảo sát đang hoạt động</div>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border">Trực tuyến</span>
+                </div>
+                <div class="preview-body">
+                    <div class="placeholder-line w-75"></div>
+                    <div class="placeholder-line w-50"></div>
+                    <div class="placeholder-line w-100 mt-3"></div>
+                    <div class="placeholder-line w-90"></div>
+                    <div class="placeholder-line w-60"></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <span class="text-muted small">Đáp nhanh trong vài phút</span>
+                    <a href="{% url 'surveys:survey_explore' %}" class="btn btn-primary btn-sm">
+                        Tham gia ngay
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="landing-section">
+    <div class="section-header">
+        <p class="eyebrow">Tại sao chọn HCMUTE Survey?</p>
+        <h3 class="fw-bold mb-2">Trải nghiệm liền mạch từ landing đến khảo sát</h3>
+        <p class="text-muted mb-0">Người dùng xem giới thiệu trước, sau đó chuyển thẳng tới trang khảo sát công khai.</p>
+    </div>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="feature-card h-100">
+                <div class="icon-circle bg-primary-subtle text-primary"><i class="bi bi-lightning-charge"></i></div>
+                <h5 class="mt-3">Bắt đầu cực nhanh</h5>
+                <p class="text-muted mb-0">Chỉ một cú nhấp vào "Vào khảo sát" để chuyển tới danh sách khảo sát đang mở.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card h-100">
+                <div class="icon-circle bg-success-subtle text-success"><i class="bi bi-clipboard-check"></i></div>
+                <h5 class="mt-3">Trải nghiệm trực quan</h5>
+                <p class="text-muted mb-0">Khảo sát hiển thị rõ ràng, tối ưu trên mọi thiết bị, dễ đọc và thao tác.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card h-100">
+                <div class="icon-circle bg-warning-subtle text-warning"><i class="bi bi-bar-chart"></i></div>
+                <h5 class="mt-3">Theo dõi kết quả</h5>
+                <p class="text-muted mb-0">Bạn có thể tạo khảo sát riêng, thu thập và xem kết quả tức thời.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if featured_surveys %}
+<div class="landing-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <div>
+            <p class="eyebrow mb-1">Khảo sát nổi bật</p>
+            <h4 class="fw-bold mb-0">Một vài khảo sát đang được quan tâm</h4>
+        </div>
+        <a href="{% url 'surveys:survey_explore' %}" class="btn btn-outline-primary btn-sm">Xem tất cả</a>
+    </div>
+    <div class="row g-4">
+        {% for survey in featured_surveys %}
+        <div class="col-md-4">
+            <div class="glass-card h-100">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="fw-semibold">{{ survey.title }}</div>
+                        <div class="text-muted small">{{ survey.description|default:"Không có mô tả" |truncatewords:18 }}</div>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary border">
+                        <i class="bi bi-chat-dots"></i> {{ survey.response_count }} phản hồi
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center text-muted small mt-3">
+                    <span><i class="bi bi-person"></i> {{ survey.creator.username }}</span>
+                    <span><i class="bi bi-calendar"></i> {{ survey.created_at|date:"d/m/Y" }}</span>
+                </div>
+                <div class="mt-3 d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Công khai • Tham gia ngay</span>
+                    <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-sm">Trả lời</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="landing-section">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-5">
+            <div class="section-header text-lg-start text-center">
+                <p class="eyebrow mb-1">Quy trình</p>
+                <h4 class="fw-bold mb-2">3 bước từ landing đến khảo sát</h4>
+                <p class="text-muted mb-0">Giới thiệu, chọn khảo sát, trả lời ngay. Không cần thao tác phức tạp.</p>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <div class="fw-semibold">Xem giới thiệu</div>
+                        <div class="text-muted small">Người dùng đến trang chủ và thấy điểm nổi bật của hệ thống.</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <div class="fw-semibold">Nhấn "Vào khảo sát"</div>
+                        <div class="text-muted small">Chuyển sang trang khám phá để tìm khảo sát công khai phù hợp.</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <div class="fw-semibold">Trả lời và gửi</div>
+                        <div class="text-muted small">Chọn khảo sát, bắt đầu trả lời và gửi phản hồi chỉ với vài click.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if latest_surveys %}
+<div class="landing-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <div>
+            <p class="eyebrow mb-1">Mới cập nhật</p>
+            <h4 class="fw-bold mb-0">Những khảo sát vừa được xuất bản</h4>
+        </div>
+        <a href="{% url 'surveys:survey_explore' %}" class="btn btn-outline-secondary btn-sm">Đi tới trang khảo sát</a>
+    </div>
+    <div class="row g-4">
+        {% for survey in latest_surveys %}
+        <div class="col-md-4">
+            <div class="feature-card h-100">
+                <h6 class="fw-semibold mb-1">{{ survey.title }}</h6>
+                <p class="text-muted small mb-2">{{ survey.description|default:"Không có mô tả" |truncatewords:18 }}</p>
+                <div class="d-flex justify-content-between text-muted small">
+                    <span><i class="bi bi-person"></i> {{ survey.creator.username }}</span>
+                    <span><i class="bi bi-calendar"></i> {{ survey.created_at|date:"d/m/Y" }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <span class="badge bg-light text-primary border"><i class="bi bi-clock-history"></i> Mới</span>
+                    <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-outline-primary btn-sm">Tham gia</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="landing-cta">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+            <div class="eyebrow mb-1">Sẵn sàng chưa?</div>
+            <h4 class="fw-bold mb-0">Tới trang khảo sát và bắt đầu thu thập phản hồi.</h4>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'surveys:survey_explore' %}" class="btn btn-primary">
+                <i class="bi bi-play-fill"></i> Vào trang khảo sát
+            </a>
+            {% if user.is_authenticated %}
+            <a href="{% url 'surveys:survey_create' %}" class="btn btn-outline-light">
+                <i class="bi bi-pencil-square"></i> Tạo khảo sát
+            </a>
+            {% else %}
+            <a href="{% url 'surveys:register' %}" class="btn btn-outline-light">
+                <i class="bi bi-person-plus"></i> Đăng ký tài khoản
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -126,7 +126,7 @@ def password_reset_request(request):
                     reverse('surveys:password_reset_confirm', kwargs={'uidb64': uidb64, 'token': token})
                 )
 
-                subject = 'Đặt lại mật khẩu HCMUTE Survey'
+                subject = 'Đặt lại mật khẩu tài khoản hệ thống khảo sát HCMUTE'
                 message = (
                     f'Xin chào {user.username},\n\n'
                     'Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản HCMUTE Survey.\n'
@@ -134,7 +134,7 @@ def password_reset_request(request):
                     f'{reset_link}\n\n'
                     'Nếu bạn không yêu cầu, hãy bỏ qua email này.\n\n'
                     'Trân trọng,\n'
-                    'HCMUTE Survey'
+                    'Đội ngũ HCMUTE Survey'
                 )
 
                 try:
@@ -193,7 +193,7 @@ def password_reset_confirm(request, uidb64, token):
 def login_view(request):
     """Trang đăng nhập"""
     if request.user.is_authenticated:
-        return redirect('surveys:home')
+        return redirect('surveys:survey_list')
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -205,7 +205,7 @@ def login_view(request):
             next_url = request.GET.get('next')
             if next_url:
                 return redirect(next_url)
-            return redirect('surveys:home')
+            return redirect('surveys:survey_list')
         else:
             messages.error(request, 'Tên đăng nhập hoặc mật khẩu không đúng!')
     
@@ -235,7 +235,26 @@ def profile_view(request):
 
 
 def home(request):
-    """Trang chủ - hiển thị danh sách khảo sát công khai"""
+    """Landing page chính, giới thiệu sản phẩm trước khi vào khảo sát"""
+    featured_surveys = Survey.objects.filter(is_active=True).annotate(
+        response_count=Count('responses')
+    ).order_by('-response_count', '-created_at')[:3]
+
+    latest_surveys = Survey.objects.filter(is_active=True).annotate(
+        response_count=Count('responses')
+    ).order_by('-created_at')[:6]
+
+    context = {
+        'featured_surveys': featured_surveys,
+        'latest_surveys': latest_surveys,
+        'total_surveys': Survey.objects.filter(is_active=True).count(),
+        'total_responses': Response.objects.count(),
+    }
+    return render(request, 'surveys/survey/landing.html', context)
+
+
+def survey_explore(request):
+    """Trang khám phá danh sách khảo sát công khai"""
     surveys = Survey.objects.filter(is_active=True).annotate(
         response_count=Count('responses')
     ).order_by('-created_at')
@@ -248,9 +267,16 @@ def home(request):
             Q(description__icontains=search_query)
         )
 
+    recent_user_surveys = None
+    if request.user.is_authenticated:
+        recent_user_surveys = Survey.objects.filter(creator=request.user).annotate(
+            response_count=Count('responses')
+        ).order_by('-created_at')[:3]
+
     context = {
         'surveys': surveys,
         'search_query': search_query,
+        'recent_user_surveys': recent_user_surveys,
     }
     return render(request, 'surveys/survey/home.html', context)
 

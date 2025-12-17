@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <!-- Navigation -->
     {% if builder_mode %}
     <!-- Header kiểu Google Forms khi đang chỉnh sửa khảo sát -->
@@ -84,11 +84,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'surveys:survey_list' %}">
                             <i class="bi bi-list-ul"></i> Khảo sát của tôi
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'surveys:survey_create' %}">
-                            <i class="bi bi-plus-circle"></i> Tạo khảo sát
                         </a>
                     </li>
                     {% endif %}

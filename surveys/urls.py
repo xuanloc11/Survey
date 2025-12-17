@@ -5,6 +5,7 @@ app_name = 'surveys'
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('khao-sat/', views.survey_explore, name='survey_explore'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),

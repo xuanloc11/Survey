@@ -160,8 +160,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-# Thiết lập người gửi mặc định
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'help@survey.xloc.id.vn')
+DEFAULT_FROM_EMAIL = 'HCMUTE Survey <help@survey.xloc.id.vn>'
 
 
 LOGOUT_REDIRECT_URL = '/'
