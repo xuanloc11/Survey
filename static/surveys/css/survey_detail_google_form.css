@@ -148,6 +148,10 @@
 }
 
 /* Tab Navigation Styles */
+#surveyTabs {
+    background: white;
+}
+
 #surveyTabs .nav-link {
     color: #5f6368;
     border: none;

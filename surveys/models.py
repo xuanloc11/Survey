@@ -13,6 +13,24 @@ class Survey(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
     expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Hết hạn vào")
     is_quiz = models.BooleanField(default=False, verbose_name="Chế độ Quiz (có đáp án đúng / tính điểm)")
+    max_responses = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Giới hạn số phản hồi",
+        help_text="Để trống nếu không giới hạn số lượt làm khảo sát"
+    )
+    password = models.CharField(
+        max_length=128,
+        blank=True,
+        verbose_name="Mật khẩu khảo sát",
+        help_text="Để trống nếu không yêu cầu mật khẩu"
+    )
+    whitelist_emails = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Danh sách email được phép",
+        help_text="Nhập danh sách email (mỗi dòng một email) được phép tham gia/export"
+    )
 
     class Meta:
         verbose_name = "Khảo sát"

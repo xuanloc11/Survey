@@ -10,7 +10,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #666666;
     min-height: 100vh;
 }
 
@@ -97,7 +97,7 @@ body {
 /* ===== Responsive mobile ===== */
 @media (max-width: 768px) {
     body {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #f5f7fa;
     }
 
     .navbar-brand {

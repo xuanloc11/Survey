@@ -31,6 +31,9 @@
                     <i class="bi bi-person"></i> Người tạo: <strong>{{ survey.creator.username }}</strong><br>
                     <i class="bi bi-calendar"></i> Ngày tạo: {{ survey.created_at|date:"d/m/Y H:i" }}<br>
                     <i class="bi bi-chat-dots"></i> Số phản hồi: <strong>{{ survey.responses.count }}</strong>
+                    {% if survey.max_responses %}
+                        <span class="text-muted">/ {{ survey.max_responses }}</span>
+                    {% endif %}
                 </small>
             </div>
             <div class="col-md-6">
@@ -47,8 +50,8 @@
             <a href="{% url 'surveys:question_add' survey.pk %}" class="btn btn-success">
                 <i class="bi bi-plus-circle"></i> Thêm câu hỏi
             </a>
-            <a href="{% url 'surveys:survey_edit' survey.pk %}" class="btn btn-warning">
-                <i class="bi bi-pencil"></i> Chỉnh sửa
+            <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-warning">
+                <i class="bi bi-pencil"></i> Mở Survey Builder
             </a>
             <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-info">
                 <i class="bi bi-graph-up"></i> Xem kết quả
@@ -117,9 +120,18 @@
 
 {% if survey.is_active and not is_expired %}
 <div class="text-center mt-4">
+    {% if is_limit_reached %}
+    <div class="alert alert-warning mb-0">
+        <i class="bi bi-exclamation-triangle"></i> Khảo sát đã đạt giới hạn số lượt làm.
+    </div>
+    {% else %}
     <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-lg">
         <i class="bi bi-pencil-square"></i> Tham gia khảo sát
+        {% if remaining_slots is not None %}
+            (Còn {{ remaining_slots }} lượt)
+        {% endif %}
     </a>
+    {% endif %}
 </div>
 {% elif is_expired %}
 <div class="alert alert-warning text-center">

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout, get_user_model
+from django.contrib.auth.hashers import make_password, check_password
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Q
@@ -299,6 +300,9 @@ def survey_create(request):
         if form.is_valid():
             survey = form.save(commit=False)
             survey.creator = request.user
+            raw_password = form.cleaned_data.get('password')
+            if raw_password:
+                survey.password = make_password(raw_password)
             survey.save()
             messages.success(request, 'Đã tạo khảo sát thành công!')
             return redirect('surveys:survey_detail', pk=survey.pk)
@@ -319,7 +323,11 @@ def survey_edit(request, pk):
     if request.method == 'POST':
         form = SurveyForm(request.POST, request.FILES, instance=survey)
         if form.is_valid():
-            form.save()
+            survey = form.save(commit=False)
+            raw_password = form.cleaned_data.get('password')
+            if raw_password:
+                survey.password = make_password(raw_password)
+            survey.save()
             messages.success(request, 'Đã cập nhật khảo sát thành công!')
             return redirect('surveys:survey_detail', pk=survey.pk)
     else:
@@ -339,6 +347,10 @@ def survey_detail(request, pk):
     
     # Kiểm tra xem khảo sát có hết hạn không
     is_expired = survey.expires_at and survey.expires_at < timezone.now()
+    responses_count = survey.responses.count()
+    max_responses = survey.max_responses
+    is_limit_reached = bool(max_responses) and responses_count >= max_responses
+    remaining_slots = max_responses - responses_count if max_responses else None
     
     can_edit = request.user.is_authenticated and request.user == survey.creator
     
@@ -349,6 +361,8 @@ def survey_detail(request, pk):
         'survey': survey,
         'questions': questions,
         'is_expired': is_expired,
+        'is_limit_reached': is_limit_reached,
+        'remaining_slots': remaining_slots,
         'can_edit': can_edit,
         # Khi đang ở chế độ builder (người tạo đang chỉnh sửa),
         # ẩn các nút điều hướng chính trên navbar để giống Google Forms
@@ -562,12 +576,51 @@ def choice_add(request, question_pk):
 def survey_take(request, pk):
     """Trang làm khảo sát"""
     survey = get_object_or_404(Survey, pk=pk, is_active=True)
+    session_key = f'survey_access_{survey.id}'
+    
+    # Whitelist email (nếu có)
+    whitelist_raw = survey.whitelist_emails or ""
+    whitelist = {email.strip().lower() for email in whitelist_raw.splitlines() if email.strip()}
+
+    # Giới hạn số lượt làm khảo sát (nếu có)
+    responses_count = survey.responses.count()
+    if survey.max_responses and responses_count >= survey.max_responses:
+        messages.error(request, 'Khảo sát đã đạt tới giới hạn số phản hồi.')
+        return redirect('surveys:survey_detail', pk=pk)
+
+    # Kiểm tra mật khẩu khảo sát (nếu có)
+    if survey.password:
+        has_access = request.session.get(session_key)
+        if not has_access:
+            if request.method == 'POST' and 'survey_password' in request.POST:
+                entered_password = request.POST.get('survey_password', '')
+                if entered_password and check_password(entered_password, survey.password):
+                    request.session[session_key] = True
+                    messages.success(request, 'Đã xác nhận mật khẩu khảo sát.')
+                    return redirect('surveys:survey_take', pk=pk)
+                else:
+                    messages.error(request, 'Mật khẩu không đúng. Vui lòng thử lại.')
+            return render(request, 'surveys/survey/survey_take.html', {
+                'survey': survey,
+                'questions': [],
+                'need_password': True,
+            })
     
     # Kiểm tra hết hạn
     if survey.expires_at and survey.expires_at < timezone.now():
         messages.error(request, 'Khảo sát này đã hết hạn!')
         return redirect('surveys:survey_detail', pk=pk)
     
+    # Kiểm tra whitelist email (chỉ áp dụng cho user đăng nhập)
+    if whitelist:
+        if not request.user.is_authenticated:
+            messages.error(request, 'Chỉ người có email trong whitelist mới được tham gia. Vui lòng đăng nhập.')
+            return redirect('surveys:login')
+        user_email = (request.user.email or '').lower()
+        if user_email not in whitelist and request.user != survey.creator:
+            messages.error(request, 'Email của bạn không nằm trong whitelist tham gia khảo sát.')
+            return redirect('surveys:survey_detail', pk=pk)
+
     # Kiểm tra xem đã trả lời chưa
     if request.user.is_authenticated:
         has_responded = Response.objects.filter(survey=survey, respondent=request.user).exists()
@@ -660,7 +713,8 @@ def survey_take(request, pk):
     
     return render(request, 'surveys/survey/survey_take.html', {
         'survey': survey,
-        'questions': questions
+        'questions': questions,
+        'need_password': False,
     })
 
 

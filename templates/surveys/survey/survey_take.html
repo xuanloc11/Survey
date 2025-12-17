@@ -12,6 +12,23 @@
         <p class="lead mb-4">{{ survey.description }}</p>
         {% endif %}
 
+        {% if need_password %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="survey_password" class="form-label">Nhập mật khẩu để tham gia khảo sát</label>
+                <input type="password" id="survey_password" name="survey_password" class="form-control" required>
+            </div>
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Quay lại
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-unlock"></i> Xác nhận
+                </button>
+            </div>
+        </form>
+        {% else %}
         <form method="post">
             {% csrf_token %}
             
@@ -100,6 +117,7 @@
                 </button>
             </div>
         </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

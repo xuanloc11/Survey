@@ -59,6 +59,42 @@
                 </div>
 
                 <div class="col-md-6 mb-3">
+                    <label for="{{ form.max_responses.id_for_label }}" class="form-label">
+                        {{ form.max_responses.label }}
+                    </label>
+                    {{ form.max_responses }}
+                    <small class="form-text text-muted">Để trống nếu không giới hạn số lượt làm khảo sát</small>
+                    {% if form.max_responses.errors %}
+                    <div class="text-danger small">{{ form.max_responses.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.whitelist_emails.id_for_label }}" class="form-label">
+                        {{ form.whitelist_emails.label }}
+                    </label>
+                    {{ form.whitelist_emails }}
+                    <small class="form-text text-muted">{{ form.whitelist_emails.help_text }}</small>
+                    {% if form.whitelist_emails.errors %}
+                    <div class="text-danger small">{{ form.whitelist_emails.errors }}</div>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.password.id_for_label }}" class="form-label">
+                        {{ form.password.label }}
+                    </label>
+                    {{ form.password }}
+                    <small class="form-text text-muted">{{ form.password.help_text }}</small>
+                    {% if form.password.errors %}
+                    <div class="text-danger small">{{ form.password.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6 mb-3">
                     <div class="form-check form-switch mt-4">
                         {{ form.is_active }}
                         <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
