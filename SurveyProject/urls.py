@@ -19,9 +19,10 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from surveys import views as survey_views
+from surveys.admin import custom_admin_site
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/', custom_admin_site.urls),
     path('', include('surveys.urls')),
 ]
 

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Cảm ơn bạn đã tham gia - {{ survey.title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <div class="mb-4">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 80px;"></i>
+        </div>
+        
+        <h2 class="mb-3">Cảm ơn bạn đã tham gia!</h2>
+        
+        <p class="lead text-muted mb-4">
+            Câu trả lời của bạn đã được ghi nhận thành công.
+        </p>
+        
+        <div class="alert alert-success mx-auto" style="max-width: 600px;">
+            <h5 class="alert-heading mb-2">
+                <i class="bi bi-envelope-check"></i> Email xác nhận
+            </h5>
+            <p class="mb-0">
+                {% if user_email %}
+                Chúng tôi đã gửi email xác nhận đến <strong>{{ user_email }}</strong>
+                {% else %}
+                Cảm ơn bạn đã hoàn thành khảo sát!
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="card mx-auto mt-4" style="max-width: 500px; background-color: #f8f9fa;">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-clipboard-check"></i> {{ survey.title }}
+                </h5>
+                {% if survey.description %}
+                <p class="card-text text-muted small">{{ survey.description|truncatewords:30 }}</p>
+                {% endif %}
+                <div class="text-muted small mt-3">
+                    <i class="bi bi-clock"></i> Hoàn thành lúc: {{ completion_time|date:"d/m/Y H:i" }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-5">
+            <a href="{% url 'surveys:home' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-house-door"></i> Về trang chủ
+            </a>
+        </div>
+        
+        <div class="mt-4 text-muted small">
+            <p class="mb-0">
+                <i class="bi bi-info-circle"></i> Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với người tạo khảo sát.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-body.text-center {
+    animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}
+

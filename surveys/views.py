@@ -602,26 +602,69 @@ def survey_take(request, pk):
             return redirect('surveys:survey_detail', pk=pk)
 
     if request.user.is_authenticated:
-        has_responded = Response.objects.filter(survey=survey, respondent=request.user).exists()
-        if has_responded:
-            messages.info(request, 'Bạn đã tham gia khảo sát này rồi!')
+        existing_response = Response.objects.filter(survey=survey, respondent=request.user).first()
+        if existing_response:
             if survey.creator == request.user:
+                messages.info(request, 'Bạn đã tham gia khảo sát này rồi!')
                 return redirect('surveys:survey_results', pk=pk)
             else:
-                return redirect('surveys:survey_detail', pk=pk)
+                if not survey.one_response_only:
+                    pass
+                else:
+                    if survey.allow_review_response:
+                        messages.info(request, 'Bạn đã tham gia khảo sát này rồi! Đang chuyển đến xem lại câu trả lời của bạn.')
+                        return redirect('surveys:survey_review_response', response_id=existing_response.id)
+                    elif not survey.allow_review_response and survey.send_confirmation_email:
+                        messages.info(request, 'Bạn đã tham gia khảo sát này rồi!')
+                        return redirect('surveys:survey_thankyou', pk=pk)
+                    else:
+                        messages.info(request, 'Bạn đã tham gia khảo sát này rồi!')
+                        return redirect('surveys:survey_detail', pk=pk)
     else:
         if request.session.get(done_session_key):
-            messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
-            return redirect('surveys:survey_detail', pk=pk)
+            # Kiểm tra xem có response_id trong session không
+            response_id_key = f'survey_response_{survey.id}'
+            response_id = request.session.get(response_id_key)
+            
+            # Kiểm tra xem có cho phép trả lời nhiều lần không
+            if not survey.one_response_only:
+                # Cho phép trả lời nhiều lần → Không chặn, cho làm lại
+                pass
+            else:
+                if response_id:
+                    # Redirect dựa vào cài đặt
+                    if survey.allow_review_response:
+                        messages.info(request, 'Bạn đã tham gia khảo sát này rồi! Đang chuyển đến xem lại câu trả lời của bạn.')
+                        return redirect('surveys:survey_review_response', response_id=response_id)
+                    elif not survey.allow_review_response and survey.send_confirmation_email:
+                        messages.info(request, 'Bạn đã tham gia khảo sát này rồi!')
+                        return redirect('surveys:survey_thankyou', pk=pk)
+                
+                messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
+                return redirect('surveys:survey_detail', pk=pk)
+            
         client_ip = get_client_ip(request)
-        has_responded_ip = Response.objects.filter(
+        existing_response_ip = Response.objects.filter(
             survey=survey,
             respondent__isnull=True,
             ip_address=client_ip
-        ).exists()
-        if has_responded_ip:
-            messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
-            return redirect('surveys:survey_detail', pk=pk)
+        ).first()
+        if existing_response_ip:
+            # Kiểm tra xem có cho phép trả lời nhiều lần không
+            if not survey.one_response_only:
+                # Cho phép trả lời nhiều lần → Không chặn, cho làm lại
+                pass
+            else:
+                # Chỉ cho trả lời 1 lần → Redirect dựa vào cài đặt
+                if survey.allow_review_response:
+                    messages.info(request, 'Bạn đã tham gia khảo sát này rồi! Đang chuyển đến xem lại câu trả lời của bạn.')
+                    return redirect('surveys:survey_review_response', response_id=existing_response_ip.id)
+                elif not survey.allow_review_response and survey.send_confirmation_email:
+                    messages.info(request, 'Bạn đã tham gia khảo sát này rồi!')
+                    return redirect('surveys:survey_thankyou', pk=pk)
+                else:
+                    messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
+                    return redirect('surveys:survey_detail', pk=pk)
     
     if request.method == 'POST':
         # Xác minh Cloudflare Turnstile Captcha cho người dùng ẩn danh
@@ -727,12 +770,49 @@ def survey_take(request, pk):
                 response_data=response_data
             )
             request.session[done_session_key] = True
+            # Lưu response_id vào session để có thể redirect lại sau này
+            response_id_key = f'survey_response_{survey.id}'
+            request.session[response_id_key] = response.id
             
             messages.success(request, 'Cảm ơn bạn đã tham gia khảo sát!')
-            if request.user == survey.creator:
-                return redirect('surveys:survey_results', pk=pk)
+            
+            # Logic xử lý dựa vào cài đặt
+            if survey.allow_review_response:
+                # Bật xem lại câu trả lời → redirect đến trang review
+                return redirect('surveys:survey_review_response', response_id=response.id)
             else:
-                return redirect('surveys:survey_detail', pk=pk)
+                # Tắt xem lại câu trả lời
+                if survey.send_confirmation_email and request.user.is_authenticated and request.user.email:
+                    # Gửi email xác nhận nếu có bật
+                    try:
+                        from django.template.loader import render_to_string
+                        from django.utils import timezone
+                        
+                        email_context = {
+                            'survey': survey,
+                            'user_email': request.user.email,
+                            'completion_time': timezone.now(),
+                        }
+                        
+                        html_message = render_to_string('surveys/email/survey_confirmation.html', email_context)
+                        
+                        send_mail(
+                            subject=f'Cảm ơn bạn đã tham gia: {survey.title}',
+                            message=f'Cảm ơn bạn đã hoàn thành khảo sát "{survey.title}". Câu trả lời của bạn đã được ghi nhận.',
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=[request.user.email],
+                            html_message=html_message,
+                            fail_silently=True,
+                        )
+                    except Exception as e:
+                        # Log error nhưng không làm gián đoạn flow
+                        pass
+                    
+                    # Redirect đến trang thank you
+                    return redirect('surveys:survey_thankyou', pk=pk)
+                else:
+                    # Không gửi email → redirect về survey detail
+                    return redirect('surveys:survey_detail', pk=pk)
     
     questions = survey.questions.all()
     
@@ -752,6 +832,65 @@ def survey_take_token(request, token):
         messages.error(request, 'Link khảo sát không hợp lệ hoặc đã bị thay đổi.')
         return redirect('surveys:home')
     return redirect('surveys:survey_take', pk=pk)
+
+def survey_review_response(request, response_id):
+    """Xem lại câu trả lời đã submit"""
+    response = get_object_or_404(Response, pk=response_id)
+    survey = response.survey
+    
+    # Kiểm tra xem khảo sát có cho phép xem lại câu trả lời không
+    if not survey.allow_review_response:
+        # Chỉ creator mới được xem
+        if request.user != survey.creator:
+            messages.error(request, 'Khảo sát này không cho phép xem lại câu trả lời.')
+            return redirect('surveys:survey_detail', pk=survey.pk)
+    
+    # Kiểm tra quyền xem: chỉ người tạo response hoặc creator của survey
+    if request.user.is_authenticated:
+        if response.respondent != request.user and survey.creator != request.user:
+            messages.error(request, 'Bạn không có quyền xem câu trả lời này.')
+            return redirect('surveys:home')
+    else:
+        # Người dùng ẩn danh: kiểm tra session hoặc IP
+        client_ip = get_client_ip(request)
+        if response.respondent is not None or response.ip_address != client_ip:
+            messages.error(request, 'Bạn không có quyền xem câu trả lời này.')
+            return redirect('surveys:home')
+    
+    # Lấy danh sách câu hỏi và câu trả lời
+    questions = survey.questions.all()
+    response_data = response.response_data or {}
+    
+    # Tạo dict chứa câu hỏi và câu trả lời
+    questions_with_answers = []
+    for question in questions:
+        if question.question_type in ['text', 'single', 'multiple']:
+            answer = response_data.get(str(question.id))
+            questions_with_answers.append({
+                'question': question,
+                'answer': answer
+            })
+    
+    return render(request, 'surveys/survey/survey_review.html', {
+        'survey': survey,
+        'response': response,
+        'questions_with_answers': questions_with_answers,
+    })
+
+def survey_thankyou(request, pk):
+    """Trang cảm ơn sau khi hoàn thành khảo sát"""
+    survey = get_object_or_404(Survey, pk=pk, is_active=True)
+    
+    # Lấy email và thời gian hoàn thành
+    user_email = None
+    if request.user.is_authenticated:
+        user_email = request.user.email
+    
+    return render(request, 'surveys/survey/survey_thankyou.html', {
+        'survey': survey,
+        'user_email': user_email,
+        'completion_time': timezone.now(),
+    })
 
 def custom_404(request, exception=None):
     return render(request, 'errors/404.html', status=404)

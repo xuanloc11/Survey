@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cảm ơn bạn đã tham gia khảo sát</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f7fb;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f7fb; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 40px; text-align: center;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
+                                ✓ Hoàn thành!
+                            </h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h2 style="color: #1f2937; font-size: 24px; margin: 0 0 20px 0;">
+                                Cảm ơn bạn đã tham gia khảo sát!
+                            </h2>
+                            
+                            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Chúng tôi đã nhận được câu trả lời của bạn cho khảo sát:
+                            </p>
+                            
+                            <div style="background-color: #f3f4f6; border-left: 4px solid #6366f1; padding: 20px; margin: 20px 0; border-radius: 6px;">
+                                <h3 style="color: #1f2937; font-size: 18px; margin: 0 0 10px 0;">
+                                    {{ survey.title }}
+                                </h3>
+                                {% if survey.description %}
+                                <p style="color: #6b7280; font-size: 14px; margin: 0; line-height: 1.5;">
+                                    {{ survey.description|truncatewords:50 }}
+                                </p>
+                                {% endif %}
+                            </div>
+                            
+                            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 20px 0;">
+                                Câu trả lời của bạn đã được ghi nhận và sẽ được sử dụng để cải thiện dịch vụ của chúng tôi.
+                            </p>
+                            
+                            <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                                <p style="color: #047857; font-size: 14px; margin: 0; line-height: 1.5;">
+                                    <strong>📧 Email:</strong> {{ user_email }}<br>
+                                    <strong>🕐 Thời gian:</strong> {{ completion_time|date:"d/m/Y H:i" }}
+                                </p>
+                            </div>
+                            
+                            {% if survey.creator.email %}
+                            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 20px 0;">
+                                Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi qua email: 
+                                <a href="mailto:{{ survey.creator.email }}" style="color: #6366f1; text-decoration: none;">
+                                    {{ survey.creator.email }}
+                                </a>
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+                                Cảm ơn bạn đã dành thời gian tham gia khảo sát của chúng tôi.
+                            </p>
+                            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                                © 2025 HCMUTE Survey. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+

@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Xem lại câu trả lời - {{ survey.title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">
+                <i class="bi bi-check-circle-fill text-success"></i> Đã gửi thành công!
+            </h3>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-success mb-4">
+            <h5 class="alert-heading">
+                <i class="bi bi-check-circle"></i> Cảm ơn bạn đã tham gia khảo sát!
+            </h5>
+            <p class="mb-0">Câu trả lời của bạn đã được ghi nhận. Dưới đây là tóm tắt các câu trả lời bạn đã chọn.</p>
+        </div>
+
+        <h4 class="mb-4">{{ survey.title }}</h4>
+        {% if survey.description %}
+        <p class="text-muted mb-4">{{ survey.description }}</p>
+        {% endif %}
+
+        <hr class="my-4">
+
+        {% for item in questions_with_answers %}
+        <div class="card mb-4 border-start border-primary border-4">
+            <div class="card-body">
+                <h5 class="mb-3">
+                    <i class="bi bi-question-circle text-primary"></i> 
+                    {{ item.question.text }}
+                    {% if item.question.is_required %}
+                    <span class="badge bg-danger">Bắt buộc</span>
+                    {% endif %}
+                </h5>
+
+                {% if item.question.question_type == 'text' %}
+                    <div class="alert alert-light mb-0">
+                        <strong><i class="bi bi-chat-left-text"></i> Câu trả lời của bạn:</strong>
+                        <p class="mb-0 mt-2" style="white-space: pre-wrap;">{{ item.answer|default:"(Không có câu trả lời)" }}</p>
+                    </div>
+                {% elif item.question.question_type == 'single' %}
+                    <div class="mb-2">
+                        <strong><i class="bi bi-check-circle"></i> Lựa chọn của bạn:</strong>
+                    </div>
+                    {% if item.question.options %}
+                        {% for choice in item.question.options %}
+                        <div class="form-check mb-2 {% if choice == item.answer %}bg-light border border-primary rounded p-3{% else %}ps-3{% endif %}">
+                            <input class="form-check-input" type="radio" disabled {% if choice == item.answer %}checked{% endif %}>
+                            <label class="form-check-label {% if choice == item.answer %}fw-bold text-primary{% endif %}">
+                                {{ choice }}
+                                {% if choice == item.answer %}
+                                <i class="bi bi-check-circle-fill text-primary ms-2"></i>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% elif item.question.question_type == 'multiple' %}
+                    <div class="mb-2">
+                        <strong><i class="bi bi-check-square"></i> Các lựa chọn của bạn:</strong>
+                    </div>
+                    {% if item.question.options %}
+                        {% for choice in item.question.options %}
+                        <div class="form-check mb-2 {% if choice in item.answer %}bg-light border border-primary rounded p-3{% else %}ps-3{% endif %}">
+                            <input class="form-check-input" type="checkbox" disabled {% if choice in item.answer %}checked{% endif %}>
+                            <label class="form-check-label {% if choice in item.answer %}fw-bold text-primary{% endif %}">
+                                {{ choice }}
+                                {% if choice in item.answer %}
+                                <i class="bi bi-check-circle-fill text-primary ms-2"></i>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Không có câu hỏi nào trong khảo sát này.
+        </div>
+        {% endfor %}
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                <i class="bi bi-clock"></i> Thời gian gửi: {{ response.created_at|date:"d/m/Y H:i" }}
+            </div>
+            <div>
+                {% if survey.creator == request.user %}
+                <a href="{% url 'surveys:survey_results' pk=survey.pk %}" class="btn btn-primary">
+                    <i class="bi bi-bar-chart"></i> Xem kết quả
+                </a>
+                {% else %}
+                <a href="{% url 'surveys:survey_detail' pk=survey.pk %}" class="btn btn-primary">
+                    <i class="bi bi-arrow-left"></i> Quay lại
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-start {
+    border-left-width: 4px !important;
+}
+
+.form-check-input:disabled {
+    opacity: 0.7;
+}
+
+.card-body .alert-light {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+

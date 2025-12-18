@@ -32,6 +32,21 @@ class Survey(models.Model):
         verbose_name="Danh sách email được phép",
         help_text="Nhập danh sách email (mỗi dòng một email) được phép tham gia/export"
     )
+    allow_review_response = models.BooleanField(
+        default=True,
+        verbose_name="Cho phép xem lại câu trả lời",
+        help_text="Người trả lời có thể xem lại câu trả lời của mình sau khi gửi"
+    )
+    send_confirmation_email = models.BooleanField(
+        default=False,
+        verbose_name="Gửi email xác nhận",
+        help_text="Gửi email cảm ơn sau khi hoàn thành khảo sát (chỉ dùng khi tắt xem lại câu trả lời)"
+    )
+    one_response_only = models.BooleanField(
+        default=True,
+        verbose_name="Chỉ cho phép trả lời 1 lần",
+        help_text="Mỗi người chỉ được trả lời khảo sát 1 lần duy nhất"
+    )
 
     class Meta:
         verbose_name = "Khảo sát"

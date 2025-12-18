@@ -109,7 +109,14 @@
             {% endfor %}
 
             {% if not request.user.is_authenticated %}
-            <!-- Cloudflare Turnstile Captcha cho người dùng ẩn danh -->
+            <!-- Captcha error messages -->
+            <div id="captchaErrorContainer" class="mb-3" style="display: none;">
+                <div class="alert alert-danger text-center mx-auto" style="max-width: 500px;">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <span id="captchaErrorMessage"></span>
+                </div>
+            </div>
+            
             <div class="d-flex justify-content-center mb-4">
                 <div class="cf-turnstile" 
                      data-sitekey="{{ TURNSTILE_SITE_KEY }}" 
@@ -146,6 +153,37 @@
 <script>
     // Auto-focus first input
     document.querySelector('input, textarea')?.focus();
+    
+    // Move captcha error messages to captcha area
+    document.addEventListener('DOMContentLoaded', function() {
+        const captchaErrorContainer = document.getElementById('captchaErrorContainer');
+        const captchaErrorMessage = document.getElementById('captchaErrorMessage');
+        
+        if (captchaErrorContainer && captchaErrorMessage) {
+            // Find all alert messages
+            const alerts = document.querySelectorAll('.alert');
+            
+            alerts.forEach(function(alert) {
+                const alertText = alert.textContent.trim().toLowerCase();
+                
+                // Check if this is a captcha-related error
+                if (alertText.includes('captcha') || alertText.includes('xác minh')) {
+                    // Get the error message
+                    const errorText = alert.textContent.trim();
+                    
+                    // Hide the original alert
+                    alert.style.display = 'none';
+                    
+                    // Show the error in captcha area
+                    captchaErrorMessage.textContent = errorText;
+                    captchaErrorContainer.style.display = 'block';
+                    
+                    // Scroll to captcha area
+                    captchaErrorContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}
 

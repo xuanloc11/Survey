@@ -535,6 +535,49 @@
                             <input type="datetime-local" class="form-control" id="id_expires_at" name="expires_at" 
                                    value="{% if survey.expires_at %}{{ survey.expires_at|date:'Y-m-d\TH:i' }}{% endif %}">
                         </div>
+
+                        <hr class="my-4">
+
+                        <h5 class="mb-3">
+                            <i class="bi bi-repeat"></i> Giới hạn trả lời
+                        </h5>
+
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="id_one_response_only" name="one_response_only" {% if survey.one_response_only %}checked{% endif %}>
+                                <label class="form-check-label" for="id_one_response_only">
+                                    <strong>Chỉ cho phép trả lời 1 lần</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">Mỗi người chỉ được trả lời 1 lần. TẮT để cho phép trả lời nhiều lần</small>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <h5 class="mb-3">
+                            <i class="bi bi-toggles"></i> Tùy chọn sau khi hoàn thành
+                        </h5>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="id_allow_review_response" name="allow_review_response" {% if survey.allow_review_response %}checked{% endif %}>
+                                <label class="form-check-label" for="id_allow_review_response">
+                                    <strong>Cho phép xem lại câu trả lời</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">Người trả lời có thể xem lại câu trả lời của mình sau khi gửi</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="id_send_confirmation_email" name="send_confirmation_email" {% if survey.send_confirmation_email %}checked{% endif %}>
+                                <label class="form-check-label" for="id_send_confirmation_email">
+                                    <strong>Gửi email xác nhận</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted" id="emailHelpTextBuilder">Gửi email cảm ơn đến người trả lời (chỉ hoạt động khi TẮT tính năng xem lại câu trả lời)</small>
+                        </div>
+
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-save"></i> Lưu thay đổi
@@ -1372,6 +1415,38 @@ document.addEventListener('DOMContentLoaded', function() {
             animateProgressBars();
             initCharts();
         });
+    }
+
+    // Handle allow_review_response and send_confirmation_email interaction in Settings tab
+    const allowReviewCheckbox = document.getElementById('id_allow_review_response');
+    const sendEmailCheckbox = document.getElementById('id_send_confirmation_email');
+    const emailHelpText = document.getElementById('emailHelpTextBuilder');
+    
+    if (allowReviewCheckbox && sendEmailCheckbox) {
+        function updateEmailCheckboxState() {
+            if (allowReviewCheckbox.checked) {
+                // Nếu bật xem lại câu trả lời → tắt và disable email
+                sendEmailCheckbox.checked = false;
+                sendEmailCheckbox.disabled = true;
+                sendEmailCheckbox.parentElement.style.opacity = '0.5';
+                if (emailHelpText) {
+                    emailHelpText.innerHTML = '<span class="text-warning"><i class="bi bi-info-circle"></i> Tính năng này bị vô hiệu hóa khi BẬT "Cho phép xem lại câu trả lời"</span>';
+                }
+            } else {
+                // Nếu tắt xem lại câu trả lời → enable email
+                sendEmailCheckbox.disabled = false;
+                sendEmailCheckbox.parentElement.style.opacity = '1';
+                if (emailHelpText) {
+                    emailHelpText.innerHTML = 'Gửi email cảm ơn đến người trả lời (chỉ hoạt động khi TẮT tính năng xem lại câu trả lời)';
+                }
+            }
+        }
+        
+        // Chạy khi trang load
+        updateEmailCheckboxState();
+        
+        // Chạy khi thay đổi
+        allowReviewCheckbox.addEventListener('change', updateEmailCheckboxState);
     }
 });
 </script>

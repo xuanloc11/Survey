@@ -7,7 +7,7 @@ from .models import Survey, Question, Response, UserProfile
 class SurveyForm(forms.ModelForm):
     class Meta:
         model = Survey
-        fields = ['title', 'description', 'header_image', 'is_active', 'is_quiz', 'expires_at', 'max_responses', 'password', 'whitelist_emails']
+        fields = ['title', 'description', 'header_image', 'is_active', 'is_quiz', 'expires_at', 'max_responses', 'password', 'whitelist_emails', 'allow_review_response', 'send_confirmation_email', 'one_response_only']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập tiêu đề khảo sát'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Nhập mô tả khảo sát'}),
@@ -18,6 +18,9 @@ class SurveyForm(forms.ModelForm):
             'max_responses': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'placeholder': 'Ví dụ: 100'}),
             'password': forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Nhập mật khẩu khảo sát (tùy chọn)'}, render_value=False),
             'whitelist_emails': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'vd: user1@gmail.com\\nuser2@gmail.com'}),
+            'allow_review_response': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'send_confirmation_email': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'one_response_only': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'title': 'Tiêu đề',
@@ -29,10 +32,16 @@ class SurveyForm(forms.ModelForm):
             'max_responses': 'Giới hạn số phản hồi',
             'password': 'Mật khẩu khảo sát',
             'whitelist_emails': 'Whitelist email (mỗi dòng 1 email)',
+            'allow_review_response': 'Cho phép xem lại câu trả lời',
+            'send_confirmation_email': 'Gửi email xác nhận',
+            'one_response_only': 'Chỉ cho phép trả lời 1 lần',
         }
         help_texts = {
             'password': 'Để trống nếu không yêu cầu mật khẩu. Khi sửa, nhập giá trị mới để thay đổi.',
             'whitelist_emails': 'Chỉ các email này mới được tham gia và xuất kết quả (để trống nếu không giới hạn).',
+            'allow_review_response': 'Cho phép người trả lời xem lại câu trả lời của mình sau khi gửi.',
+            'send_confirmation_email': 'Gửi email cảm ơn đến người trả lời (chỉ hoạt động khi TẮT tính năng xem lại câu trả lời).',
+            'one_response_only': 'Mỗi người chỉ được trả lời 1 lần. TẮT để cho phép trả lời nhiều lần.',
         }
 
     def __init__(self, *args, **kwargs):

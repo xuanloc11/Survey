@@ -104,6 +104,49 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        {{ form.one_response_only }}
+                        <label class="form-check-label" for="{{ form.one_response_only.id_for_label }}">
+                            {{ form.one_response_only.label }}
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">{{ form.one_response_only.help_text }}</small>
+                    {% if form.one_response_only.errors %}
+                    <div class="text-danger small">{{ form.one_response_only.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        {{ form.allow_review_response }}
+                        <label class="form-check-label" for="{{ form.allow_review_response.id_for_label }}">
+                            {{ form.allow_review_response.label }}
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">{{ form.allow_review_response.help_text }}</small>
+                    {% if form.allow_review_response.errors %}
+                    <div class="text-danger small">{{ form.allow_review_response.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        {{ form.send_confirmation_email }}
+                        <label class="form-check-label" for="{{ form.send_confirmation_email.id_for_label }}">
+                            {{ form.send_confirmation_email.label }}
+                        </label>
+                    </div>
+                    <small class="form-text text-muted" id="emailHelpText">{{ form.send_confirmation_email.help_text }}</small>
+                    {% if form.send_confirmation_email.errors %}
+                    <div class="text-danger small">{{ form.send_confirmation_email.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between mt-4">
                 <a href="{% if survey %}{% url 'surveys:survey_detail' survey.pk %}{% else %}{% url 'surveys:survey_list' %}{% endif %}" 
                    class="btn btn-secondary">
@@ -118,5 +161,36 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const allowReviewCheckbox = document.getElementById('{{ form.allow_review_response.id_for_label }}');
+    const sendEmailCheckbox = document.getElementById('{{ form.send_confirmation_email.id_for_label }}');
+    const emailHelpText = document.getElementById('emailHelpText');
+    
+    function updateCheckboxStates() {
+        if (allowReviewCheckbox.checked) {
+            // Nếu bật xem lại câu trả lời → tắt và disable email
+            sendEmailCheckbox.checked = false;
+            sendEmailCheckbox.disabled = true;
+            sendEmailCheckbox.parentElement.style.opacity = '0.5';
+            emailHelpText.innerHTML = '<span class="text-warning"><i class="bi bi-info-circle"></i> Tính năng này bị vô hiệu hóa khi BẬT "Cho phép xem lại câu trả lời"</span>';
+        } else {
+            // Nếu tắt xem lại câu trả lời → enable email
+            sendEmailCheckbox.disabled = false;
+            sendEmailCheckbox.parentElement.style.opacity = '1';
+            emailHelpText.innerHTML = '{{ form.send_confirmation_email.help_text|escapejs }}';
+        }
+    }
+    
+    // Chạy khi trang load
+    updateCheckboxStates();
+    
+    // Chạy khi thay đổi
+    allowReviewCheckbox.addEventListener('change', updateCheckboxStates);
+});
+</script>
 {% endblock %}
 
