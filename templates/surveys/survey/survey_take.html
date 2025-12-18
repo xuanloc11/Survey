@@ -108,13 +108,28 @@
             </div>
             {% endfor %}
 
-            <div class="d-flex justify-content-between mt-4">
-                <a href="{{ back_url }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Quay lại
-                </a>
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-send"></i> Gửi phản hồi
-                </button>
+            {% if not request.user.is_authenticated %}
+            <!-- Cloudflare Turnstile Captcha cho người dùng ẩn danh -->
+            <div class="d-flex justify-content-center mb-4">
+                <div class="cf-turnstile" 
+                     data-sitekey="{{ TURNSTILE_SITE_KEY }}" 
+                     data-theme="light"
+                     data-language="vi">
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mt-4">
+                <div class="d-flex justify-content-center mb-3">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-send"></i> Gửi phản hồi
+                    </button>
+                </div>
+                <div class="text-center">
+                    <a href="{{ back_url }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Quay lại
+                    </a>
+                </div>
             </div>
         </form>
         {% endif %}
@@ -123,6 +138,11 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Cloudflare Turnstile Script -->
+{% if not request.user.is_authenticated %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
+
 <script>
     // Auto-focus first input
     document.querySelector('input, textarea')?.focus();

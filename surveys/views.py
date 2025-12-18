@@ -18,6 +18,7 @@ from django.core import signing
 from uuid import uuid4
 import json
 import csv
+import requests
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -71,7 +72,7 @@ def register_view(request):
                 )
                 messages.success(
                     request,
-                    'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.'
+                    'Đăng ký tài khoảnthành công! Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.'
                 )
             except Exception:
                 messages.warning(
@@ -623,6 +624,54 @@ def survey_take(request, pk):
             return redirect('surveys:survey_detail', pk=pk)
     
     if request.method == 'POST':
+        # Xác minh Cloudflare Turnstile Captcha cho người dùng ẩn danh
+        if not request.user.is_authenticated:
+            cf_response = request.POST.get('cf-turnstile-response')
+            
+            if not cf_response:
+                messages.error(request, 'Vui lòng hoàn thành xác minh captcha.')
+                questions = survey.questions.all()
+                return render(request, 'surveys/survey/survey_take.html', {
+                    'survey': survey,
+                    'questions': questions,
+                    'need_password': False,
+                    'back_url': back_url,
+                    'TURNSTILE_SITE_KEY': settings.CLOUDFLARE_TURNSTILE_SITE_KEY,
+                })
+            
+            # Verify với Cloudflare
+            verify_url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+            verify_data = {
+                'secret': settings.CLOUDFLARE_TURNSTILE_SECRET_KEY,
+                'response': cf_response,
+                'remoteip': get_client_ip(request)
+            }
+            
+            try:
+                verify_result = requests.post(verify_url, data=verify_data, timeout=10).json()
+                
+                if not verify_result.get('success'):
+                    error_codes = verify_result.get('error-codes', [])
+                    messages.error(request, 'Xác minh captcha thất bại. Vui lòng thử lại.')
+                    questions = survey.questions.all()
+                    return render(request, 'surveys/survey/survey_take.html', {
+                        'survey': survey,
+                        'questions': questions,
+                        'need_password': False,
+                        'back_url': back_url,
+                        'TURNSTILE_SITE_KEY': settings.CLOUDFLARE_TURNSTILE_SITE_KEY,
+                    })
+            except requests.RequestException as e:
+                messages.error(request, 'Không thể xác minh captcha. Vui lòng thử lại sau.')
+                questions = survey.questions.all()
+                return render(request, 'surveys/survey/survey_take.html', {
+                    'survey': survey,
+                    'questions': questions,
+                    'need_password': False,
+                    'back_url': back_url,
+                    'TURNSTILE_SITE_KEY': settings.CLOUDFLARE_TURNSTILE_SITE_KEY,
+                })
+        
         errors = []
         for question in survey.questions.all():
             field_name = f'question_{question.id}'
@@ -692,6 +741,7 @@ def survey_take(request, pk):
         'questions': questions,
         'need_password': False,
         'back_url': back_url,
+        'TURNSTILE_SITE_KEY': settings.CLOUDFLARE_TURNSTILE_SITE_KEY,
     })
 
 def survey_take_token(request, token):
