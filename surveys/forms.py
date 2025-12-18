@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Survey, Question, Response
+from .models import Survey, Question, Response, UserProfile
 
 
 class SurveyForm(forms.ModelForm):
@@ -37,7 +37,6 @@ class SurveyForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Không hiển thị mật khẩu đã mã hóa trong form
         self.fields['password'].initial = ''
 
 
@@ -71,7 +70,6 @@ class ResponseForm(forms.Form):
                     widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
                 )
             elif question.question_type == 'single':
-                # Sử dụng options từ JSONField
                 options = question.options or []
                 choices = [(idx, opt) for idx, opt in enumerate(options)]
                 self.fields[f'question_{question.id}'] = forms.ChoiceField(
@@ -81,7 +79,6 @@ class ResponseForm(forms.Form):
                     widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
                 )
             elif question.question_type == 'multiple':
-                # Sử dụng options từ JSONField
                 options = question.options or []
                 choices = [(idx, opt) for idx, opt in enumerate(options)]
                 self.fields[f'question_{question.id}'] = forms.MultipleChoiceField(
@@ -122,6 +119,9 @@ class UserRegisterForm(UserCreationForm):
             'password1': 'Mật khẩu',
             'password2': 'Xác nhận mật khẩu',
         }
+        help_texts = {
+            'username': '',
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -138,7 +138,6 @@ class UserRegisterForm(UserCreationForm):
 
 
 class UserProfileForm(forms.ModelForm):
-    """Form cập nhật thông tin cá nhân."""
 
     email = forms.EmailField(
         required=True,
@@ -154,6 +153,11 @@ class UserProfileForm(forms.ModelForm):
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ'})
     )
+    avatar = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control'}),
+        label='Ảnh đại diện'
+    )
 
     class Meta:
         model = User
@@ -167,6 +171,14 @@ class UserProfileForm(forms.ModelForm):
             'first_name': 'Tên',
             'last_name': 'Họ',
         }
+        help_texts = {
+            'username': '',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and hasattr(self.instance, 'profile') and self.instance.profile.avatar:
+            self.fields['avatar'].initial = self.instance.profile.avatar
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
@@ -174,3 +186,12 @@ class UserProfileForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError("Email này đã được sử dụng!")
         return email
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        avatar = self.cleaned_data.get('avatar')
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if avatar:
+            profile.avatar = avatar
+            profile.save()
+        return user

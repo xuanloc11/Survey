@@ -1,8 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
-# Survey giữ nguyên (hoặc thêm ảnh QR như đã bàn)
 class Survey(models.Model):
     title = models.CharField(max_length=200, verbose_name="Tiêu đề")
     description = models.TextField(blank=True, verbose_name="Mô tả")
@@ -46,7 +47,7 @@ class Question(models.Model):
         ('text', 'Câu hỏi tự luận'),
         ('single', 'Chọn một đáp án'),  # Radio
         ('multiple', 'Chọn nhiều đáp án'),  # Checkbox
-        ('section', 'Tiêu đề/phần'),
+        ('section', 'Tiêu đề'),
         ('description', 'Mô tả'),
         ('image', 'Hình ảnh'),
         ('video', 'Video'),
@@ -88,3 +89,22 @@ class Response(models.Model):
 
     def __str__(self):
         return f"Response #{self.id} for {self.survey.title}"
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+
+    def __str__(self):
+        return f"Profile of {self.user.username}"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    UserProfile.objects.get_or_create(user=instance)

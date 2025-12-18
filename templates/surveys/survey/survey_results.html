@@ -2,6 +2,87 @@
 
 {% block title %}Kết quả: {{ survey.title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Style cho progress bar */
+    .progress {
+        height: 35px;
+        background-color: #e9ecef;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        position: relative;
+    }
+    .progress-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        color: white;
+        background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%);
+        transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: 0;
+        white-space: nowrap;
+        animation: progressSlide 1.5s ease-out;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    @keyframes progressSlide {
+        0% {
+            width: 0 !important;
+            opacity: 0.8;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+    
+    .progress-bar.full-width {
+        width: 100% !important;
+    }
+    
+    /* Style cho chart */
+    .chart-container {
+        position: relative;
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+    
+    .chart-wrapper {
+        display: flex;
+        gap: 2rem;
+        align-items: flex-start;
+    }
+    
+    .chart-canvas {
+        flex: 0 0 300px;
+        max-width: 300px;
+    }
+    
+    .chart-data {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .chart-type-toggle {
+        margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .chart-wrapper {
+            flex-direction: column;
+        }
+        .chart-canvas {
+            flex: 0 0 auto;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card mb-4">
     <div class="card-header">
@@ -28,6 +109,25 @@
                 <div class="stat-card">
                     <div class="stat-number">{{ survey.responses.count }}</div>
                     <small class="text-muted">Người tham gia</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Biểu đồ tổng quan -->
+        <div class="mt-4">
+            <h5 class="mb-3">
+                <i class="bi bi-pie-chart-fill"></i> Biểu đồ tổng quan
+            </h5>
+            <div class="chart-container">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-center mb-3">Thống kê tổng quan</h6>
+                        <canvas id="overview-chart" style="max-height: 300px;"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-center mb-3">Tỷ lệ hoàn thành</h6>
+                        <canvas id="completion-chart" style="max-height: 300px;"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -66,23 +166,50 @@
         
         {% else %}
         <p class="text-muted mb-3">Tổng số phản hồi: {{ stat.total }}</p>
-        {% for choice_stat in stat.choices %}
-        <div class="mb-3">
-            <div class="d-flex justify-content-between mb-1">
-                <span>{{ choice_stat.choice.text }}</span>
-                <span class="fw-bold">{{ choice_stat.count }} ({{ choice_stat.percentage }}%)</span>
+        
+        <!-- Chart Container -->
+        <div class="chart-container">
+            <div class="chart-type-toggle">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="switchChart({{ forloop.counter }}, 'doughnut')">
+                        <i class="bi bi-pie-chart"></i> Biểu đồ tròn
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="switchChart({{ forloop.counter }}, 'bar')">
+                        <i class="bi bi-bar-chart"></i> Biểu đồ cột
+                    </button>
+                </div>
             </div>
-            <div class="progress">
-                <div class="progress-bar" role="progressbar" 
-                     style="width: {{ choice_stat.percentage }}%"
-                     aria-valuenow="{{ choice_stat.percentage }}" 
-                     aria-valuemin="0" 
-                     aria-valuemax="100">
-                    {{ choice_stat.percentage }}%
+            
+            <div class="chart-wrapper">
+                <div class="chart-canvas">
+                    <canvas id="chart-{{ forloop.counter }}" 
+                            data-chart-id="{{ forloop.counter }}">
+                    </canvas>
+                </div>
+                
+                <div class="chart-data">
+                    {% for choice_stat in stat.choices %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>{{ choice_stat.choice.text }}</span>
+                            <span class="fw-bold">{{ choice_stat.count }} ({{ choice_stat.percentage }}%)</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar {% if choice_stat.percentage == 100 %}full-width{% endif %}" 
+                                 role="progressbar"
+                                 data-percentage="{{ choice_stat.percentage }}"
+                                 style="width: 0%"
+                                 aria-valuenow="{{ choice_stat.percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ choice_stat.percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
-        {% endfor %}
         {% endif %}
     </div>
 </div>
@@ -96,5 +223,309 @@
         <i class="bi bi-list"></i> Danh sách khảo sát
     </a>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Data for overview charts
+const totalResponses = {{ total_responses }};
+const totalQuestions = {{ survey.questions.count }};
+const totalParticipants = {{ survey.responses.count }};
+
+// Chart data storage for each question
+const chartInstances = {};
+const chartData = {
+    {% for stat in stats %}
+    {% if stat.type != 'text' %}
+    {{ forloop.counter }}: {
+        labels: [{% for choice_stat in stat.choices %}'{{ choice_stat.choice.text|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        data: [{% for choice_stat in stat.choices %}{{ choice_stat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+        colors: [
+            {% for choice_stat in stat.choices %}
+            'hsl({{ forloop.counter0|add:210|divisibleby:360 }}, 70%, 60%)'{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        ]
+    },
+    {% endif %}
+    {% endfor %}
+};
+
+// Generate beautiful colors
+function generateColors(count) {
+    const colors = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF9F40',
+        '#36A2EB', '#FFCE56', '#9966FF', '#FF6384', '#36A2EB'
+    ];
+    return colors.slice(0, count);
+}
+
+// Create overview chart (thống kê tổng quan)
+function createOverviewChart() {
+    const canvas = document.getElementById('overview-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Tổng phản hồi', 'Số câu hỏi', 'Người tham gia'],
+            datasets: [{
+                data: [totalResponses, totalQuestions, totalParticipants],
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const value = data.datasets[0].data[i];
+                                    return {
+                                        text: `${label}: ${value}`,
+                                        fillStyle: data.datasets[0].backgroundColor[i],
+                                        hidden: false,
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
+                        }
+                    }
+                },
+                title: {
+                    display: false
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1500,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
+// Create completion chart (tỷ lệ hoàn thành)
+function createCompletionChart() {
+    const canvas = document.getElementById('completion-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    const completed = totalResponses;
+    const remaining = Math.max(0, totalQuestions * 10 - totalResponses);
+    
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Đã hoàn thành', 'Chưa đạt mục tiêu'],
+            datasets: [{
+                data: [completed, remaining],
+                backgroundColor: ['#4BC0C0', '#E0E0E0'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const value = data.datasets[0].data[i];
+                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return {
+                                        text: `${label}: ${value} (${percentage}%)`,
+                                        fillStyle: data.datasets[0].backgroundColor[i],
+                                        hidden: false,
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1500,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
+// Create chart for each question
+function createChart(chartId, type = 'doughnut') {
+    const canvas = document.getElementById(`chart-${chartId}`);
+    if (!canvas) return;
+    
+    const data = chartData[chartId];
+    if (!data) return;
+    
+    // Destroy existing chart if any
+    if (chartInstances[chartId]) {
+        chartInstances[chartId].destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    const config = {
+        type: type,
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: generateColors(data.labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const value = data.datasets[0].data[i];
+                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return {
+                                        text: `${label}: ${value} (${percentage}%)`,
+                                        fillStyle: data.datasets[0].backgroundColor[i],
+                                        hidden: false,
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1000,
+                easing: 'easeOutQuart'
+            }
+        }
+    };
+    
+    // Adjust options for bar chart
+    if (type === 'bar') {
+        config.options.scales = {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        };
+        config.options.plugins.legend.display = false;
+    }
+    
+    chartInstances[chartId] = new Chart(ctx, config);
+}
+
+// Switch chart type
+function switchChart(chartId, type) {
+    // Update button states
+    const buttons = event.target.closest('.btn-group').querySelectorAll('.btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Recreate chart with new type
+    createChart(chartId, type);
+}
+
+// Initialize all charts
+function initCharts() {
+    createOverviewChart();
+    createCompletionChart();
+    Object.keys(chartData).forEach(chartId => {
+        createChart(chartId, 'doughnut');
+    });
+}
+
+// Animate progress bars on page load
+function animateProgressBars() {
+    const progressBars = document.querySelectorAll('.progress-bar[data-percentage]');
+    
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+        progressBars.forEach((bar, index) => {
+            const percentage = parseFloat(bar.dataset.percentage);
+            
+            // Stagger animation for multiple bars
+            setTimeout(() => {
+                bar.style.width = percentage + '%';
+                
+                // Force 100% to be truly full width
+                if (percentage === 100 || percentage >= 99.9) {
+                    bar.classList.add('full-width');
+                    bar.style.width = '100%';
+                }
+            }, index * 100); // 100ms delay between each bar
+        });
+    }, 100);
+}
+
+// Run when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initCharts();
+    animateProgressBars();
+});
+</script>
 {% endblock %}
 

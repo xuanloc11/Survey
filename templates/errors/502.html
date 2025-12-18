@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Lỗi dịch vụ (502){% endblock %}
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4 fw-bold text-warning">502</h1>
+    <p class="lead">Máy chủ tạm thời không phản hồi. Vui lòng thử lại sau.</p>
+    <a class="btn btn-primary" href="{% url 'surveys:home' %}">Về trang chủ</a>
+</div>
+{% endblock %}
+

@@ -95,13 +95,6 @@
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <div class="form-check form-switch mt-4">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                            {{ form.is_active.label }}
-                        </label>
-                    </div>
-
                     <div class="form-check form-switch mt-2">
                         {{ form.is_quiz }}
                         <label class="form-check-label" for="{{ form.is_quiz.id_for_label }}">
@@ -116,9 +109,11 @@
                    class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Hủy
                 </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-circle"></i> Lưu
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Lưu
+                    </button>
+                </div>
             </div>
         </form>
     </div>

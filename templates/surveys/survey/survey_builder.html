@@ -5,11 +5,127 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'surveys/css/survey_detail_google_form.css' %}">
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+    .ql-editor {
+        min-height: 100px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .ql-toolbar {
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+    }
+    .ql-container {
+        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
+    }
+    /* Style cho HTML content được render */
+    .text-muted strong { font-weight: 600; }
+    .text-muted em { font-style: italic; }
+    .text-muted u { text-decoration: underline; }
+    .text-muted ol, .text-muted ul { 
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+    .text-muted a {
+        color: #0d6efd;
+        text-decoration: underline;
+    }
+    /* Style cho subtitle editor inline */
+    .subtitle-editor-section {
+        padding: 0.75rem;
+        background-color: #f8f9fa;
+        border-radius: 0.375rem;
+    }
+    .subtitle-editor-inline .ql-editor {
+        min-height: 80px;
+        max-height: 200px;
+        background-color: white;
+    }
+    .subtitle-editor-inline .ql-toolbar {
+        background-color: white;
+    }
+    .progress {
+        height: 35px;
+        background-color: #e9ecef;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        position: relative;
+    }
+    .progress-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        color: white;
+        background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%);
+        transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: 0;
+        white-space: nowrap;
+        animation: progressSlide 1.5s ease-out;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    @keyframes progressSlide {
+        0% {
+            width: 0 !important;
+            opacity: 0.8;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+    
+    .progress-bar.full-width {
+        width: 100% !important;
+    }
+    
+    /* Style cho chart */
+    .chart-container {
+        position: relative;
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+    
+    .chart-wrapper {
+        display: flex;
+        gap: 2rem;
+        align-items: flex-start;
+    }
+    
+    .chart-canvas {
+        flex: 0 0 300px;
+        max-width: 300px;
+    }
+    
+    .chart-data {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .chart-type-toggle {
+        margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .chart-wrapper {
+            flex-direction: column;
+        }
+        .chart-canvas {
+            flex: 0 0 auto;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid" style="max-width: 900px;">
-    <!-- Survey Header -->
     <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
         {% if survey.header_image %}
         <div class="position-relative" style="max-height: 260px; overflow: hidden; border-radius: 15px 15px 0 0;">
@@ -27,13 +143,12 @@
             <div class="d-flex gap-3 align-items-center">
                 <span class="badge bg-secondary">{{ survey.responses.count }} phản hồi</span>
                 <span id="surveyStatusBadge" class="badge {% if survey.is_active %}bg-success{% else %}bg-secondary{% endif %}">
-                    {% if survey.is_active %}Đang hoạt động{% else %}Đã tắt{% endif %}
+                    {% if survey.is_active %}Đang hoạt động{% else %}Nháp{% endif %}
                 </span>
             </div>
         </div>
     </div>
 
-    <!-- Tab Navigation -->
     {% if can_edit %}
     <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
         <div class="card-body p-0">
@@ -62,11 +177,8 @@
         </div>
     </div>
 
-    <!-- Tab Content -->
     <div class="tab-content" id="surveyTabContent">
-        <!-- Tab: Câu hỏi -->
         <div class="tab-pane fade show active" id="questions-pane" role="tabpanel">
-            <!-- Questions Container (Sortable) -->
             <div id="questions-container" data-survey-id="{{ survey.pk }}">
         {% for question in questions %}
         <div class="question-item" data-question-id="{{ question.id }}" data-order="{{ question.order }}">
@@ -75,18 +187,42 @@
                 <span class="question-number">{{ forloop.counter }}.</span>
                 <input type="text" class="question-text" value="{{ question.text }}" 
                        data-question-id="{{ question.id }}" placeholder="Câu hỏi">
+                {% if question.question_type == 'text' or question.question_type == 'single' or question.question_type == 'multiple' %}
                 <select class="question-type-select" data-question-id="{{ question.id }}">
-                    <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Tự luận</option>
-                    <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Chọn một</option>
-                    <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
-                    <option value="section" {% if question.question_type == 'section' %}selected{% endif %}>Tiêu đề/Phần</option>
-                    <option value="description" {% if question.question_type == 'description' %}selected{% endif %}>Mô tả</option>
-                    <option value="image" {% if question.question_type == 'image' %}selected{% endif %}>Hình ảnh</option>
-                    <option value="video" {% if question.question_type == 'video' %}selected{% endif %}>Video</option>
+                    <optgroup label="Câu hỏi">
+                        <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Tự luận</option>
+                        <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Chọn một</option>
+                        <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
+                    </optgroup>
+                    <optgroup label="Nội dung">
+                        <option value="section">Tiêu đề/Mô tả</option>
+                        <option value="image">Hình ảnh</option>
+                        <option value="video">Video</option>
+                    </optgroup>
                 </select>
-                <div class="question-actions">
-                    <button class="btn-icon" onclick="toggleRequired({{ question.id }})" title="Bắt buộc">
-                        <i class="bi bi-{% if question.is_required %}asterisk{% else %}asterisk text-muted{% endif %}"></i>
+                {% else %}
+                <span class="badge bg-secondary ms-2">
+                    {% if question.question_type == 'section' or question.question_type == 'description' %}
+                        Tiêu đề/Mô tả
+                    {% elif question.question_type == 'image' %}
+                        Hình ảnh
+                    {% elif question.question_type == 'video' %}
+                        Video
+                    {% endif %}
+                </span>
+                {% endif %}
+                <div class="question-actions d-flex align-items-center gap-2">
+                    {% if question.question_type == 'text' or question.question_type == 'single' or question.question_type == 'multiple' %}
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input required-toggle" type="checkbox" role="switch"
+                               id="required_{{ question.id }}"
+                               {% if question.is_required %}checked{% endif %}
+                               onchange="toggleRequired({{ question.id }}, this)">
+                        <label class="form-check-label small text-muted" for="required_{{ question.id }}">Bắt buộc</label>
+                    </div>
+                    {% endif %}
+                    <button class="btn-icon" onclick="duplicateQuestion({{ question.id }})" title="Nhân bản câu hỏi">
+                        <i class="bi bi-files"></i>
                     </button>
                     <button class="btn-icon" onclick="deleteQuestion({{ question.id }})" title="Xóa">
                         <i class="bi bi-trash"></i>
@@ -121,33 +257,54 @@
                 </div>
             {% endif %}
             
-            {% if question.question_type == 'description' %}
-            <div class="mt-2 text-muted">{{ question.subtitle }}</div>
-            {% elif question.question_type == 'section' %}
-            <div class="mt-2 fw-semibold">{{ question.subtitle }}</div>
-            {% elif question.question_type == 'image' and question.media_url %}
+            {% if question.question_type == 'description' or question.question_type == 'section' %}
+            <div class="mt-3 subtitle-editor-section" data-question-id="{{ question.id }}">
+                <label class="form-label small text-muted">Mô tả (không bắt buộc)</label>
+                <div id="subtitle-editor-{{ question.id }}" class="subtitle-editor-inline">{{ question.subtitle|default:""|safe }}</div>
+            </div>
+            {% elif question.question_type == 'image' %}
             <div class="mt-3">
-                <img src="{{ question.media_url }}" alt="{{ question.subtitle|default:'Image' }}" class="img-fluid rounded">
-                {% if question.subtitle %}<div class="small text-muted mt-1">{{ question.subtitle }}</div>{% endif %}
+                {% if question.media_url %}
+                <img src="{{ question.media_url }}" alt="{{ question.subtitle|default:'Image' }}" class="img-fluid rounded mb-2">
+                {% else %}
+                <div class="alert alert-info mb-2">
+                    <small>Chưa có hình ảnh. Vui lòng upload ảnh.</small>
+                </div>
+                {% endif %}
+                <div class="subtitle-editor-section" data-question-id="{{ question.id }}">
+                    <label class="form-label small text-muted">Mô tả/Phụ đề (không bắt buộc)</label>
+                    <div id="subtitle-editor-{{ question.id }}" class="subtitle-editor-inline">{{ question.subtitle|default:""|safe }}</div>
+                </div>
             </div>
-            {% elif question.question_type == 'video' and question.media_url %}
-            <div class="mt-3 ratio ratio-16x9">
-                <iframe src="{{ question.media_url }}" allowfullscreen title="{{ question.subtitle|default:'Video' }}"></iframe>
+            {% elif question.question_type == 'video' %}
+            <div class="mt-3">
+                {% if question.media_url %}
+                <div class="ratio ratio-16x9 mb-2">
+                    <iframe src="{{ question.media_url }}" allowfullscreen title="{{ question.subtitle|default:'Video' }}"></iframe>
+                </div>
+                {% else %}
+                <div class="alert alert-info mb-2">
+                    <small>Chưa có link video. Vui lòng thêm link video.</small>
+                </div>
+                {% endif %}
+                <div class="subtitle-editor-section" data-question-id="{{ question.id }}">
+                    <label class="form-label small text-muted">Mô tả/Phụ đề (không bắt buộc)</label>
+                    <div id="subtitle-editor-{{ question.id }}" class="subtitle-editor-inline">{{ question.subtitle|default:""|safe }}</div>
+                </div>
             </div>
-            {% if question.subtitle %}<div class="small text-muted mt-1">{{ question.subtitle }}</div>{% endif %}
             {% endif %}
         </div>
             {% endfor %}
             </div>
 
     {% if can_edit %}
-    <!-- Builder Toolbar giống Google Forms -->
     <div class="builder-toolbar position-fixed" style="top: 140px; right: 40px; z-index: 1030;">
         <div class="bg-white shadow rounded-3 d-flex flex-column align-items-center py-3 px-2 gap-3">
-            <button type="button" class="btn btn-light p-2" title="Thêm câu hỏi trắc nghiệm" onclick="showAddQuestionForm('single')">
+            <button type="button" class="btn btn-light p-2" title="Thêm câu hỏi" onclick="showAddQuestionForm(null)">
                 <i class="bi bi-plus-lg"></i>
             </button>
-            <button type="button" class="btn btn-light p-2" title="Thêm mô tả / văn bản" onclick="showAddQuestionForm('description')">
+            <hr class="w-100 my-1">
+            <button type="button" class="btn btn-light p-2" title="Thêm tiêu đề/mô tả" onclick="showAddQuestionForm('section')">
                 <span class="fw-bold">Tt</span>
             </button>
             <button type="button" class="btn btn-light p-2" title="Thêm hình ảnh" onclick="showAddQuestionForm('image')">
@@ -156,14 +313,10 @@
             <button type="button" class="btn btn-light p-2" title="Thêm video" onclick="showAddQuestionForm('video')">
                 <i class="bi bi-play-btn"></i>
             </button>
-            <button type="button" class="btn btn-light p-2" title="Thêm phần mới" onclick="showAddQuestionForm('section')">
-                <i class="bi bi-segmented-nav"></i>
-            </button>
         </div>
     </div>
     {% endif %}
 
-            <!-- Preview/Submit Button -->
             {% if survey.is_active and not is_expired %}
             <div class="text-center mt-4">
                 <a href="{% url 'surveys:survey_take' survey.pk %}" class="btn btn-primary btn-lg">
@@ -173,7 +326,6 @@
             {% endif %}
         </div>
 
-        <!-- Tab: Kết quả -->
         <div class="tab-pane fade" id="results-pane" role="tabpanel">
             <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
                 <div class="card-body">
@@ -203,7 +355,6 @@
                 </div>
             </div>
 
-            <!-- Statistics -->
             {% if stats %}
             {% for stat in stats %}
             <div class="card mb-4" style="border: none; box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);">
@@ -236,23 +387,48 @@
                     
                     {% else %}
                     <p class="text-muted mb-3">Tổng số phản hồi: {{ stat.total }}</p>
-                    {% for choice_stat in stat.choices %}
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>{{ choice_stat.option }}</span>
-                            <span class="fw-bold">{{ choice_stat.count }} ({{ choice_stat.percentage }}%)</span>
+                    
+                    <!-- Chart Container -->
+                    <div class="chart-container">
+                        <div class="chart-type-toggle">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary active" onclick="switchChart({{ forloop.counter }}, 'doughnut')">
+                                    <i class="bi bi-pie-chart"></i> Biểu đồ tròn
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="switchChart({{ forloop.counter }}, 'bar')">
+                                    <i class="bi bi-bar-chart"></i> Biểu đồ cột
+                                </button>
+                            </div>
                         </div>
-                        <div class="progress">
-                            <div class="progress-bar" role="progressbar" 
-                                 style="width: {{ choice_stat.percentage }}%"
-                                 aria-valuenow="{{ choice_stat.percentage }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
-                                {{ choice_stat.percentage }}%
+                        
+                        <div class="chart-wrapper">
+                            <div class="chart-canvas">
+                                <canvas id="chart-{{ forloop.counter }}" data-chart-id="{{ forloop.counter }}"></canvas>
+                            </div>
+                            
+                            <div class="chart-data">
+                                {% for choice_stat in stat.choices %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>{{ choice_stat.option }}</span>
+                                        <span class="fw-bold">{{ choice_stat.count }} ({{ choice_stat.percentage }}%)</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar {% if choice_stat.percentage == 100 %}full-width{% endif %}" 
+                                             role="progressbar" 
+                                             data-percentage="{{ choice_stat.percentage }}"
+                                             style="width: 0%"
+                                             aria-valuenow="{{ choice_stat.percentage }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            {{ choice_stat.percentage }}%
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
                     {% endif %}
                 </div>
             </div>
@@ -272,16 +448,19 @@
                         <i class="bi bi-file-earmark-arrow-down"></i> Xuất dữ liệu khảo sát
                     </h4>
                     <p class="text-muted">
-                        Tải xuống toàn bộ câu trả lời của khảo sát này dưới dạng file CSV. 
-                        Bạn có thể mở file bằng Excel, Google Sheets hoặc các công cụ phân tích dữ liệu khác.
+                        Tải xuống toàn bộ câu trả lời của khảo sát dưới nhiều định dạng:
                     </p>
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                        <a href="{% url 'surveys:survey_export_csv' survey.pk %}" class="btn btn-success">
-                            <i class="bi bi-filetype-csv"></i> Tải file CSV
+                        <a href="{% url 'surveys:survey_export_excel' survey.pk %}" class="btn btn-success">
+                            <i class="bi bi-file-earmark-excel"></i> Tải file Excel (.xlsx)
                         </a>
                         <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-outline-primary">
                             <i class="bi bi-graph-up"></i> Xem trang kết quả chi tiết
                         </a>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted d-block"><strong>Excel (.xlsx)</strong>: Có định dạng đẹp, màu sắc, cột tự động rộng - phù hợp để xem và trình bày</small>
+                        <small class="text-muted d-block"><strong>CSV</strong>: File nhẹ, dễ import vào database hoặc công cụ phân tích dữ liệu</small>
                     </div>
                     <hr>
                     <small class="text-muted">
@@ -336,6 +515,22 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label for="id_max_responses" class="form-label">Giới hạn số phản hồi</label>
+                            <input type="number" class="form-control" id="id_max_responses" name="max_responses" min="1" placeholder="Ví dụ: 100"
+                                   value="{{ survey.max_responses|default_if_none:'' }}">
+                            <small class="text-muted">Để trống nếu không giới hạn số lượt làm khảo sát</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_whitelist_emails" class="form-label">Whitelist email (mỗi dòng một email)</label>
+                            <textarea class="form-control" id="id_whitelist_emails" name="whitelist_emails" rows="4" placeholder="vd: user1@gmail.com&#10;user2@gmail.com">{{ survey.whitelist_emails }}</textarea>
+                            <small class="text-muted">Chỉ các email này được tham gia và export kết quả. Để trống nếu không giới hạn.</small>
+                        </div>
+                        <div class="mb-4">
+                            <label for="id_password" class="form-label">Mật khẩu khảo sát (tuỳ chọn)</label>
+                            <input type="password" class="form-control" id="id_password" name="password" placeholder="Nhập mật khẩu mới nếu muốn cập nhật">
+                            <small class="text-muted">Để trống nếu giữ nguyên / không dùng mật khẩu.</small>
+                        </div>
+                        <div class="mb-3">
                             <label for="id_expires_at" class="form-label">Hết hạn vào</label>
                             <input type="datetime-local" class="form-control" id="id_expires_at" name="expires_at" 
                                    value="{% if survey.expires_at %}{{ survey.expires_at|date:'Y-m-d\TH:i' }}{% endif %}">
@@ -356,34 +551,41 @@
     {% endif %}
 </div>
 
-<!-- Add Question Form Modal -->
 <div class="modal fade" id="addQuestionModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Thêm câu hỏi mới</h5>
+                <h5 class="modal-title" id="modal-title">Thêm câu hỏi mới</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
                 <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Nội dung câu hỏi</label>
+                    <label class="form-label" id="new-question-text-label">Nội dung câu hỏi</label>
                     <input type="text" class="form-control" id="new-question-text" placeholder="Nhập câu hỏi">
                 </div>
-                <div class="mb-3">
+                <div class="mb-3" id="question-type-container">
                     <label class="form-label">Loại câu hỏi</label>
                     <select class="form-select" id="new-question-type">
                         <option value="text">Tự luận</option>
-                        <option value="single">Chọn một</option>
+                        <option value="single" selected>Chọn một</option>
                         <option value="multiple">Chọn nhiều</option>
-                        <option value="section">Tiêu đề/Phần</option>
-                        <option value="description">Mô tả</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3" id="content-type-container" style="display: none;">
+                    <label class="form-label">Loại nội dung</label>
+                    <select class="form-select" id="new-content-type">
+                        <option value="section">Tiêu đề/Mô tả</option>
                         <option value="image">Hình ảnh</option>
                         <option value="video">Video</option>
                     </select>
                 </div>
                 <div class="mb-3" id="new-question-subtitle" style="display:none;">
-                    <label class="form-label">Mô tả/Phụ đề</label>
-                    <textarea class="form-control" rows="2" placeholder="Nhập mô tả hoặc phụ đề"></textarea>
+                    <label class="form-label" id="new-question-subtitle-label">Mô tả/Phụ đề</label>
+                    <div id="subtitle-editor-container">
+                        <div id="subtitle-editor"></div>
+                    </div>
+                    <small class="text-muted">Không bắt buộc. Bạn có thể định dạng văn bản (in đậm, nghiêng, gạch chân...)</small>
                 </div>
                 <div class="mb-3" id="new-question-media" style="display:none;">
                     <label class="form-label">Link video (YouTube embed link)</label>
@@ -419,10 +621,30 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 const surveyId = Number('{{ survey.pk }}');
 const csrfToken = '{{ csrf_token }}';
 const surveyIsQuiz = {{ survey.is_quiz|yesno:'true,false' }};
+
+// Biến lưu trữ Quill editor instance
+let subtitleQuillEditor = null;
+let currentModalType = null; // Lưu loại modal hiện tại
+let inlineSubtitleEditors = {}; // Lưu các editor inline cho mỗi câu hỏi
+
+// Chart data storage
+const chartInstances = {};
+const chartData = {
+    {% for stat in stats %}
+    {% if stat.type != 'text' %}
+    {{ forloop.counter }}: {
+        labels: [{% for choice_stat in stat.choices %}'{{ choice_stat.option|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        data: [{% for choice_stat in stat.choices %}{{ choice_stat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+    },
+    {% endif %}
+    {% endfor %}
+};
 
 // Initialize Sortable for drag & drop
 {% if can_edit %}
@@ -434,6 +656,47 @@ let sortable = Sortable.create(document.getElementById('questions-container'), {
     }
 });
 {% endif %}
+
+// Initialize inline subtitle editors for existing questions
+function initInlineSubtitleEditors() {
+    document.querySelectorAll('.subtitle-editor-inline').forEach(editorDiv => {
+        const questionId = editorDiv.id.replace('subtitle-editor-', '');
+        
+        if (inlineSubtitleEditors[questionId]) {
+            return; // Already initialized
+        }
+        
+        const toolbarOptions = [
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+        ];
+        
+        const editor = new Quill(`#${editorDiv.id}`, {
+            theme: 'snow',
+            modules: {
+                toolbar: toolbarOptions
+            },
+            placeholder: 'Nhập mô tả...'
+        });
+        
+        inlineSubtitleEditors[questionId] = editor;
+        
+        // Auto-save on text change
+        let saveTimeout;
+        editor.on('text-change', function() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                const html = editor.root.innerHTML;
+                updateQuestion(questionId, {subtitle: html});
+            }, 1500);
+        });
+    });
+}
+
+// Initialize all editors on page load
+initInlineSubtitleEditors();
 
 // Auto-save question text
 document.querySelectorAll('.question-text').forEach(input => {
@@ -466,35 +729,138 @@ document.querySelectorAll('.choice-input').forEach(input => {
     });
 });
 
+function attachChoiceFocus() {
+    document.querySelectorAll('.choice-item').forEach(item => {
+        if (item.dataset.focusBound) return;
+        const input = item.querySelector('.choice-input');
+        if (!input) return;
+        item.dataset.focusBound = '1';
+        item.addEventListener('click', function (evt) {
+            if (evt.target.closest('button')) return;
+            input.focus();
+            input.select();
+        });
+    });
+}
+attachChoiceFocus();
+
 function showAddQuestionForm(defaultType) {
     const modal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
-    const typeSelect = document.getElementById('new-question-type');
+    const modalTitle = document.getElementById('modal-title');
+    const questionTypeContainer = document.getElementById('question-type-container');
+    const contentTypeContainer = document.getElementById('content-type-container');
+    const questionTypeSelect = document.getElementById('new-question-type');
+    const contentTypeSelect = document.getElementById('new-content-type');
     const choicesBlock = document.getElementById('new-question-choices');
     const subtitleBlock = document.getElementById('new-question-subtitle');
     const mediaBlock = document.getElementById('new-question-media');
     const imageFileBlock = document.getElementById('new-question-image-file');
+    const textLabel = document.getElementById('new-question-text-label');
+    const textInput = document.getElementById('new-question-text');
+    const subtitleLabel = document.getElementById('new-question-subtitle-label');
+    
+    // Reset tất cả các block
     subtitleBlock.style.display = 'none';
     mediaBlock.style.display = 'none';
     imageFileBlock.style.display = 'none';
     choicesBlock.style.display = 'none';
+    
+    // Reset input
+    textInput.value = '';
 
-    // Đặt sẵn loại khi bấm icon trên toolbar
-    if (defaultType) {
-        typeSelect.value = defaultType;
+    // Xác định loại và hiển thị UI tương ứng
+    if (defaultType === 'section') {
+        // Thêm Tiêu đề/Mô tả: ẩn cả 2 dropdown, hiển thị trực tiếp
+        currentModalType = 'section';
+        modalTitle.textContent = 'Thêm tiêu đề/mô tả';
+        questionTypeContainer.style.display = 'none';
+        contentTypeContainer.style.display = 'none';
+        subtitleBlock.style.display = 'block';
+        textLabel.textContent = 'Tiêu đề';
+        textInput.placeholder = 'Nhập tiêu đề';
+        subtitleLabel.textContent = 'Mô tả (không bắt buộc)';
+    } else if (defaultType === 'image') {
+        // Thêm hình ảnh
+        currentModalType = 'image';
+        modalTitle.textContent = 'Thêm hình ảnh';
+        questionTypeContainer.style.display = 'none';
+        contentTypeContainer.style.display = 'none';
+        subtitleBlock.style.display = 'block';
+        imageFileBlock.style.display = 'block';
+        textLabel.textContent = 'Tiêu đề';
+        textInput.placeholder = 'Nhập tiêu đề';
+        subtitleLabel.textContent = 'Mô tả/Phụ đề (không bắt buộc)';
+    } else if (defaultType === 'video') {
+        // Thêm video
+        currentModalType = 'video';
+        modalTitle.textContent = 'Thêm video';
+        questionTypeContainer.style.display = 'none';
+        contentTypeContainer.style.display = 'none';
+        subtitleBlock.style.display = 'block';
+        mediaBlock.style.display = 'block';
+        textLabel.textContent = 'Tiêu đề';
+        textInput.placeholder = 'Nhập tiêu đề';
+        subtitleLabel.textContent = 'Mô tả/Phụ đề (không bắt buộc)';
     } else {
-        typeSelect.value = 'single';
+        // Thêm câu hỏi: hiển thị dropdown loại câu hỏi
+        currentModalType = 'question';
+        modalTitle.textContent = 'Thêm câu hỏi mới';
+        questionTypeContainer.style.display = 'block';
+        contentTypeContainer.style.display = 'none';
+        questionTypeSelect.value = defaultType || 'single';
+        textLabel.textContent = 'Nội dung câu hỏi';
+        textInput.placeholder = 'Nhập câu hỏi';
     }
+
     const applyTypeUI = function(type) {
         choicesBlock.style.display = (type === 'single' || type === 'multiple') ? 'block' : 'none';
-        subtitleBlock.style.display = (type === 'description' || type === 'section' || type === 'image' || type === 'video') ? 'block' : 'none';
-        mediaBlock.style.display = (type === 'video') ? 'block' : 'none';
-        imageFileBlock.style.display = (type === 'image') ? 'block' : 'none';
+        
+        if (type === 'text') {
+            subtitleBlock.style.display = 'none';
+            mediaBlock.style.display = 'none';
+            imageFileBlock.style.display = 'none';
+        }
     };
-    applyTypeUI(typeSelect.value);
+    
+    const getCurrentType = function() {
+        if (defaultType === 'section') return 'section';
+        if (defaultType === 'image') return 'image';
+        if (defaultType === 'video') return 'video';
+        if (questionTypeContainer.style.display !== 'none') {
+            return questionTypeSelect.value;
+        }
+        return 'single';
+    };
+    
+    // Chỉ apply khi là câu hỏi
+    if (!defaultType || !['section', 'image', 'video'].includes(defaultType)) {
+        applyTypeUI(getCurrentType());
+    }
 
-    typeSelect.onchange = function() {
+    questionTypeSelect.onchange = function() {
         applyTypeUI(this.value);
     };
+    
+    // Khởi tạo Quill editor cho mô tả/phụ đề
+    if (subtitleQuillEditor) {
+        subtitleQuillEditor.setText('');
+    } else {
+        const toolbarOptions = [
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+        ];
+        
+        subtitleQuillEditor = new Quill('#subtitle-editor', {
+            theme: 'snow',
+            modules: {
+                toolbar: toolbarOptions
+            },
+            placeholder: 'Nhập mô tả hoặc phụ đề...'
+        });
+    }
+    
     modal.show();
 }
 
@@ -514,8 +880,29 @@ function addNewChoiceInput() {
 
 function saveNewQuestion() {
     const text = document.getElementById('new-question-text').value;
-    const type = document.getElementById('new-question-type').value;
-    const subtitle = document.querySelector('#new-question-subtitle textarea')?.value || '';
+    const questionTypeSelect = document.getElementById('new-question-type');
+    
+    // Xác định type dựa vào currentModalType
+    let type;
+    if (currentModalType === 'section') {
+        type = 'section';
+    } else if (currentModalType === 'image') {
+        type = 'image';
+    } else if (currentModalType === 'video') {
+        type = 'video';
+    } else {
+        type = questionTypeSelect.value;
+    }
+    
+    // Lấy HTML content từ Quill editor
+    let subtitle = '';
+    if (subtitleQuillEditor) {
+        const delta = subtitleQuillEditor.getContents();
+        if (delta.ops && delta.ops.length > 0) {
+            subtitle = subtitleQuillEditor.root.innerHTML;
+        }
+    }
+    
     const mediaUrl = document.getElementById('new-question-media-link')?.value || '';
     const imageInput = document.getElementById('new-question-image-input');
     const imageFile = imageInput && imageInput.files.length ? imageInput.files[0] : null;
@@ -524,7 +911,11 @@ function saveNewQuestion() {
         .filter(v => v);
     
     if (!text.trim()) {
-        alert('Vui lòng nhập nội dung câu hỏi');
+        if (currentModalType === 'section' || currentModalType === 'image' || currentModalType === 'video') {
+            alert('Vui lòng nhập tiêu đề');
+        } else {
+            alert('Vui lòng nhập nội dung câu hỏi');
+        }
         return;
     }
     
@@ -748,18 +1139,53 @@ function deleteQuestion(questionId) {
     }
 }
 
-function toggleRequired(questionId) {
-    const btn = event.target.closest('.btn-icon');
-    const icon = btn.querySelector('i');
-    const isRequired = !icon.classList.contains('text-muted');
-    
-    updateQuestion(questionId, {is_required: !isRequired});
-    
-    if (isRequired) {
-        icon.classList.add('text-muted');
-    } else {
-        icon.classList.remove('text-muted');
+function toggleRequired(questionId, checkboxEl) {
+    const isRequired = checkboxEl.checked;
+    updateQuestion(questionId, {is_required: isRequired});
+}
+
+function duplicateQuestion(questionId) {
+    const item = document.querySelector(`[data-question-id="${questionId}"]`);
+    if (!item) return;
+
+    const textInput = item.querySelector('.question-text');
+    const typeSelect = item.querySelector('.question-type-select');
+    const requiredToggle = item.querySelector('.required-toggle');
+
+    const text = textInput ? textInput.value : '';
+    const questionType = typeSelect ? typeSelect.value : 'text';
+    const isRequired = requiredToggle ? requiredToggle.checked : false;
+
+    let choices = [];
+    if (questionType === 'single' || questionType === 'multiple') {
+        choices = Array.from(item.querySelectorAll('.choice-input'))
+            .map(input => input.value.trim())
+            .filter(Boolean);
     }
+
+    fetch(`/api/survey/${surveyId}/question/add/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            text: text || 'Bản sao câu hỏi',
+            question_type: questionType,
+            is_required: isRequired,
+            choices: choices,
+            order: document.querySelectorAll('.question-item').length + 1
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Không thể nhân bản câu hỏi');
+        }
+    })
+    .catch(() => alert('Không thể kết nối server'));
 }
 
 function saveQuestionOrder() {
@@ -790,6 +1216,164 @@ function updateQuestionNumbers() {
         el.textContent = (index + 1) + '.';
     });
 }
+
+// Animate progress bars on page load
+function animateProgressBars() {
+    const progressBars = document.querySelectorAll('.progress-bar[data-percentage]');
+    
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+        progressBars.forEach((bar, index) => {
+            const percentage = parseFloat(bar.dataset.percentage);
+            
+            // Stagger animation for multiple bars
+            setTimeout(() => {
+                bar.style.width = percentage + '%';
+                
+                // Force 100% to be truly full width
+                if (percentage === 100 || percentage >= 99.9) {
+                    bar.classList.add('full-width');
+                    bar.style.width = '100%';
+                }
+            }, index * 100); // 100ms delay between each bar
+        });
+    }, 100);
+}
+
+// Generate beautiful colors
+function generateColors(count) {
+    const colors = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF9F40',
+        '#36A2EB', '#FFCE56', '#9966FF', '#FF6384', '#36A2EB'
+    ];
+    return colors.slice(0, count);
+}
+
+// Create chart
+function createChart(chartId, type = 'doughnut') {
+    const canvas = document.getElementById(`chart-${chartId}`);
+    if (!canvas) return;
+    
+    const data = chartData[chartId];
+    if (!data) return;
+    
+    // Destroy existing chart if any
+    if (chartInstances[chartId]) {
+        chartInstances[chartId].destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    const config = {
+        type: type,
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: generateColors(data.labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const value = data.datasets[0].data[i];
+                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return {
+                                        text: `${label}: ${value} (${percentage}%)`,
+                                        fillStyle: data.datasets[0].backgroundColor[i],
+                                        hidden: false,
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1000,
+                easing: 'easeOutQuart'
+            }
+        }
+    };
+    
+    // Adjust options for bar chart
+    if (type === 'bar') {
+        config.options.scales = {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        };
+        config.options.plugins.legend.display = false;
+    }
+    
+    chartInstances[chartId] = new Chart(ctx, config);
+}
+
+// Switch chart type
+function switchChart(chartId, type) {
+    // Update button states
+    const buttons = event.target.closest('.btn-group').querySelectorAll('.btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Recreate chart with new type
+    createChart(chartId, type);
+}
+
+// Initialize all charts
+function initCharts() {
+    Object.keys(chartData).forEach(chartId => {
+        createChart(chartId, 'doughnut');
+    });
+}
+
+// Run animation when results tab is shown
+document.addEventListener('DOMContentLoaded', function() {
+    animateProgressBars();
+    
+    // Also animate when switching to results tab
+    const resultsTab = document.getElementById('results-tab');
+    if (resultsTab) {
+        resultsTab.addEventListener('shown.bs.tab', function() {
+            animateProgressBars();
+            initCharts();
+        });
+    }
+});
 </script>
 {% endblock %}
 

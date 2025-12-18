@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-)ydua-3i!9yro2ni1$!b7gl-gq^^)^o$6u6-9+^^s^jt0pkdta
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -160,9 +160,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-DEFAULT_FROM_EMAIL = 'HCMUTE Survey <help@survey.xloc.id.vn>'
+DEFAULT_FROM_EMAIL = 'HCMUTE Survey <support@survey.xloc.id.vn>'
 
-# Session settings (cho cả người dùng ẩn danh làm khảo sát)
 SESSION_COOKIE_NAME = 'survey_sessionid'
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 ngày
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False

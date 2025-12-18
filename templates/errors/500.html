@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Lỗi hệ thống (500){% endblock %}
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4 fw-bold text-danger">500</h1>
+    <p class="lead">Có lỗi xảy ra. Vui lòng thử lại sau hoặc liên hệ quản trị viên.</p>
+    <a class="btn btn-primary" href="{% url 'surveys:home' %}">Về trang chủ</a>
+</div>
+{% endblock %}
+

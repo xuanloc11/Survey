@@ -29,7 +29,18 @@
                     <label for="{{ form.question_type.id_for_label }}" class="form-label">
                         {{ form.question_type.label }}
                     </label>
-                    {{ form.question_type }}
+                    <select name="{{ form.question_type.name }}" class="form-select" id="{{ form.question_type.id_for_label }}">
+                        <optgroup label="Câu hỏi">
+                            <option value="text" {% if form.question_type.value == 'text' %}selected{% endif %}>Tự luận</option>
+                            <option value="single" {% if form.question_type.value == 'single' %}selected{% endif %}>Chọn một</option>
+                            <option value="multiple" {% if form.question_type.value == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
+                        </optgroup>
+                        <optgroup label="Nội dung">
+                            <option value="section" {% if form.question_type.value == 'section' or form.question_type.value == 'description' %}selected{% endif %}>Tiêu đề/Mô tả</option>
+                            <option value="image" {% if form.question_type.value == 'image' %}selected{% endif %}>Hình ảnh</option>
+                            <option value="video" {% if form.question_type.value == 'video' %}selected{% endif %}>Video</option>
+                        </optgroup>
+                    </select>
                     {% if form.question_type.errors %}
                     <div class="text-danger small">{{ form.question_type.errors }}</div>
                     {% endif %}

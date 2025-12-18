@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Không tìm thấy (404){% endblock %}
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4 fw-bold text-danger">404</h1>
+    <p class="lead">Trang bạn truy cập không tồn tại hoặc đã bị di chuyển.</p>
+    <a class="btn btn-primary" href="{% url 'surveys:home' %}">Về trang chủ</a>
+    <a class="btn btn-outline-secondary ms-2" href="javascript:history.back()">Quay lại</a>
+</div>
+{% endblock %}
+

@@ -169,6 +169,9 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="saveDraftBtn">
+                        <i class="bi bi-save2"></i> Lưu nháp
+                    </button>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
                     <button type="button" class="btn btn-primary" id="publishConfirmBtn">
                         <i class="bi bi-upload"></i> Xuất bản
@@ -201,7 +204,7 @@
     <!-- Footer -->
     <footer>
         <div class="container">
-            <p class="mb-0">&copy; 2025 Hệ thống Quản lý Khảo sát. Phát triển bởi Django.</p>
+            <p class="mb-0">&copy; 2025 Hệ thống Quản lý Khảo sát.</p>
         </div>
     </footer>
 
@@ -269,6 +272,9 @@
 
         publishBtn.addEventListener('click', function () {
             const isActive = publishToggle ? publishToggle.checked : true;
+            publishBtn.disabled = true;
+            const originalText = publishBtn.innerHTML;
+            publishBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang cập nhật';
             fetch(`/api/survey/${surveyId}/publish/`, {
                 method: 'POST',
                 headers: {
@@ -280,6 +286,8 @@
             })
             .then(res => res.json())
             .then(data => {
+                publishBtn.disabled = false;
+                publishBtn.innerHTML = originalText;
                 if (data.success) {
                     if (isActive) {
                         publishStatus.classList.remove('d-none');
@@ -289,13 +297,16 @@
                             statusBadge.classList.add('bg-success');
                             statusBadge.textContent = 'Đang hoạt động';
                         }
+                        publishBtn.innerHTML = '<i class="bi bi-check-circle"></i> Đã xuất bản';
+                        publishBtn.disabled = true;
+                        setTimeout(() => window.location.reload(), 800);
                     } else {
                         publishStatus.classList.add('d-none');
                         publishStatusOff.classList.remove('d-none');
                         if (statusBadge) {
                             statusBadge.classList.remove('bg-success');
                             statusBadge.classList.add('bg-secondary');
-                            statusBadge.textContent = 'Đã tắt';
+                            statusBadge.textContent = 'Nháp';
                         }
                     }
                     // Đổi trạng thái nút/toggle trong modal
@@ -307,9 +318,44 @@
                 }
             })
             .catch(() => {
+                publishBtn.disabled = false;
+                publishBtn.innerHTML = originalText;
                 alert('Không thể kết nối server. Vui lòng thử lại.');
             });
         });
+
+        const saveDraftBtn = document.getElementById('saveDraftBtn');
+        if (saveDraftBtn) {
+            saveDraftBtn.addEventListener('click', function () {
+                saveDraftBtn.disabled = true;
+                saveDraftBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu nháp';
+                fetch(`/api/survey/${surveyId}/publish/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken || ''
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({is_active: false})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        saveDraftBtn.innerHTML = '<i class="bi bi-save2"></i> Đã lưu nháp';
+                        setTimeout(() => window.location.reload(), 600);
+                    } else {
+                        saveDraftBtn.disabled = false;
+                        saveDraftBtn.innerHTML = '<i class="bi bi-save2"></i> Lưu nháp';
+                        alert('Không lưu được nháp: ' + (data.error || 'Không rõ'));
+                    }
+                })
+                .catch(() => {
+                    saveDraftBtn.disabled = false;
+                    saveDraftBtn.innerHTML = '<i class="bi bi-save2"></i> Lưu nháp';
+                    alert('Không thể kết nối server. Vui lòng thử lại.');
+                });
+            });
+        }
     })();
     </script>
     {% endif %}

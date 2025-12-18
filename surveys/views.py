@@ -14,9 +14,13 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.urls import reverse
+from django.core import signing
 from uuid import uuid4
 import json
 import csv
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from .models import Survey, Question, Response
 from .forms import (
     SurveyForm,
@@ -30,7 +34,6 @@ User = get_user_model()
 
 
 def register_view(request):
-    """Trang đăng ký với xác nhận email"""
     if request.user.is_authenticated:
         return redirect('surveys:home')
 
@@ -38,11 +41,9 @@ def register_view(request):
         form = UserRegisterForm(request.POST)
         if form.is_valid():
             user: User = form.save(commit=False)
-            # Tài khoản cần xác nhận email trước khi có thể đăng nhập
             user.is_active = False
             user.save()
 
-            # Gửi email xác nhận
             uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             activation_link = request.build_absolute_uri(
@@ -73,7 +74,6 @@ def register_view(request):
                     'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.'
                 )
             except Exception:
-                # Nếu gửi mail lỗi, vẫn tạo tài khoản nhưng thông báo cho admin qua log/message
                 messages.warning(
                     request,
                     'Đăng ký thành công nhưng hiện không gửi được email xác nhận. '
@@ -223,8 +223,10 @@ def logout_view(request):
 @login_required
 def profile_view(request):
     """Trang thông tin cá nhân"""
+    from .models import UserProfile
+    UserProfile.objects.get_or_create(user=request.user)
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, instance=request.user)
+        form = UserProfileForm(request.POST, request.FILES, instance=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Đã cập nhật thông tin cá nhân!')
@@ -237,59 +239,17 @@ def profile_view(request):
 
 def home(request):
     """Landing page chính, giới thiệu sản phẩm trước khi vào khảo sát"""
-    featured_surveys = Survey.objects.filter(is_active=True).annotate(
-        response_count=Count('responses')
-    ).order_by('-response_count', '-created_at')[:3]
-
-    latest_surveys = Survey.objects.filter(is_active=True).annotate(
-        response_count=Count('responses')
-    ).order_by('-created_at')[:6]
-
     context = {
-        'featured_surveys': featured_surveys,
-        'latest_surveys': latest_surveys,
         'total_surveys': Survey.objects.filter(is_active=True).count(),
         'total_responses': Response.objects.count(),
     }
-    return render(request, 'surveys/survey/landing.html', context)
-
-
-def survey_explore(request):
-    """Trang khám phá danh sách khảo sát công khai"""
-    surveys = Survey.objects.filter(is_active=True).annotate(
-        response_count=Count('responses')
-    ).order_by('-created_at')
-
-    # Lọc theo từ khóa
-    search_query = request.GET.get('search', '')
-    if search_query:
-        surveys = surveys.filter(
-            Q(title__icontains=search_query) |
-            Q(description__icontains=search_query)
-        )
-
-    recent_user_surveys = None
-    if request.user.is_authenticated:
-        recent_user_surveys = Survey.objects.filter(creator=request.user).annotate(
-            response_count=Count('responses')
-        ).order_by('-created_at')[:3]
-
-    context = {
-        'surveys': surveys,
-        'search_query': search_query,
-        'recent_user_surveys': recent_user_surveys,
-    }
-    return render(request, 'surveys/survey/home.html', context)
-
-
+    return render(request, 'surveys/pages/home.html', context)
 @login_required
 def dashboard(request):
     """Trang dashboard cho người dùng đã đăng nhập"""
-    # Thống kê chung
     total_surveys = Survey.objects.count()
     total_responses = Response.objects.count()
 
-    # Thống kê riêng cho người dùng
     user_surveys = Survey.objects.filter(creator=request.user).annotate(
         response_count=Count('responses')
     ).order_by('-created_at')
@@ -318,7 +278,6 @@ def survey_list(request):
     }
     return render(request, 'surveys/survey/survey_list.html', context)
 
-
 @login_required
 def survey_create(request):
     """Tạo khảo sát mới"""
@@ -330,11 +289,12 @@ def survey_create(request):
             raw_password = form.cleaned_data.get('password')
             if raw_password:
                 survey.password = make_password(raw_password)
+            survey.is_active = False
             survey.save()
-            messages.success(request, 'Đã tạo khảo sát thành công!')
+            messages.success(request, 'Đã tạo khảo sát ở trạng thái nháp. Hãy xuất bản khi sẵn sàng!')
             return redirect('surveys:survey_detail', pk=survey.pk)
     else:
-        form = SurveyForm()
+        form = SurveyForm(initial={'is_active': False})
     
     return render(request, 'surveys/survey/survey_form.html', {
         'form': form,
@@ -372,7 +332,6 @@ def survey_detail(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
     questions = survey.questions.all().order_by('order')
     
-    # Kiểm tra xem khảo sát có hết hạn không
     is_expired = survey.expires_at and survey.expires_at < timezone.now()
     responses_count = survey.responses.count()
     max_responses = survey.max_responses
@@ -380,8 +339,6 @@ def survey_detail(request, pk):
     remaining_slots = max_responses - responses_count if max_responses else None
     
     can_edit = request.user.is_authenticated and request.user == survey.creator
-    
-    # Sử dụng trang builder nếu là creator, còn lại dùng trang xem chi tiết thường
     template_name = 'surveys/survey/survey_builder.html' if can_edit else 'surveys/survey/survey_detail.html'
     
     context = {
@@ -391,21 +348,16 @@ def survey_detail(request, pk):
         'is_limit_reached': is_limit_reached,
         'remaining_slots': remaining_slots,
         'can_edit': can_edit,
-        # Khi đang ở chế độ builder (người tạo đang chỉnh sửa),
-        # ẩn các nút điều hướng chính trên navbar để giống Google Forms
         'builder_mode': can_edit,
-        # Link chia sẻ công khai
         'share_link': request.build_absolute_uri(
-            reverse('surveys:survey_take', args=[survey.pk])
+            reverse('surveys:survey_take_token', args=[signing.dumps(survey.pk, salt="survey-share")])
         ),
     }
     
-    # Thêm dữ liệu cho tab "Kết quả" nếu là creator
     if can_edit:
         responses = survey.responses.all()
         total_responses_count = responses.count()
         
-        # Thống kê
         stats = []
         for question in questions:
             question_id_str = str(question.id)
@@ -414,7 +366,6 @@ def survey_detail(request, pk):
                 continue
             
             if question.question_type == 'text':
-                # Thu thập tất cả câu trả lời text
                 text_answers = []
                 for response in responses:
                     if response.response_data and question_id_str in response.response_data:
@@ -429,7 +380,6 @@ def survey_detail(request, pk):
                     'total': len(text_answers)
                 })
             else:
-                # Thống kê lựa chọn từ options (JSONField)
                 choice_stats = []
                 if question.options:
                     for idx, option_text in enumerate(question.options):
@@ -495,7 +445,6 @@ def question_add(request, survey_pk):
             question.survey = survey
             question.save()
             
-            # Nếu là câu hỏi có lựa chọn, chuyển đến trang thêm lựa chọn
             if question.question_type in ['single', 'multiple']:
                 return redirect('surveys:choice_add', question_pk=question.pk)
             else:
@@ -573,13 +522,11 @@ def choice_add(request, question_pk):
     if request.method == 'POST':
         option_text = request.POST.get('text', '').strip()
         if option_text:
-            # Thêm vào options (JSONField)
             if question.options is None:
                 question.options = []
             question.options.append(option_text)
             question.save()
             
-            # Kiểm tra xem có muốn thêm tiếp không
             if 'add_another' in request.POST:
                 messages.success(request, 'Đã thêm lựa chọn! Tiếp tục thêm...')
                 return redirect('surveys:choice_add', question_pk=question.pk)
@@ -589,7 +536,6 @@ def choice_add(request, question_pk):
         else:
             messages.error(request, 'Vui lòng nhập nội dung lựa chọn!')
     
-    # Lấy options từ JSONField
     options = question.options or []
     
     return render(request, 'surveys/choice/choice_form.html', {
@@ -606,23 +552,26 @@ def survey_take(request, pk):
     session_key = f'survey_access_{survey.id}'
     done_session_key = f'survey_done_{survey.id}'
 
-    # Đảm bảo luôn có session cho khách
+    back_url = request.META.get('HTTP_REFERER')
+    current_url = request.build_absolute_uri(request.get_full_path())
+    if back_url:
+        if back_url.rstrip('/') == current_url.rstrip('/'):
+            back_url = None
+    if not back_url:
+        back_url = reverse('surveys:survey_detail', args=[survey.pk])
+
     if not request.session.session_key:
         request.session.create()
     if 'anon_session_id' not in request.session:
         request.session['anon_session_id'] = uuid4().hex
     
-    # Whitelist email (nếu có)
     whitelist_raw = survey.whitelist_emails or ""
     whitelist = {email.strip().lower() for email in whitelist_raw.splitlines() if email.strip()}
 
-    # Giới hạn số lượt làm khảo sát (nếu có)
     responses_count = survey.responses.count()
     if survey.max_responses and responses_count >= survey.max_responses:
         messages.error(request, 'Khảo sát đã đạt tới giới hạn số phản hồi.')
         return redirect('surveys:survey_detail', pk=pk)
-
-    # Kiểm tra mật khẩu khảo sát (nếu có)
     if survey.password:
         has_access = request.session.get(session_key)
         if not has_access:
@@ -638,21 +587,19 @@ def survey_take(request, pk):
                 'survey': survey,
                 'questions': [],
                 'need_password': True,
+                'back_url': back_url,
             })
     
-    # Kiểm tra hết hạn
     if survey.expires_at and survey.expires_at < timezone.now():
         messages.error(request, 'Khảo sát này đã hết hạn!')
         return redirect('surveys:survey_detail', pk=pk)
     
-    # Kiểm tra whitelist email (chỉ áp dụng cho user đăng nhập; khách vẫn được tham gia)
     if whitelist and request.user.is_authenticated:
         user_email = (request.user.email or '').lower()
         if user_email not in whitelist and request.user != survey.creator:
             messages.error(request, 'Email của bạn không nằm trong whitelist tham gia khảo sát.')
             return redirect('surveys:survey_detail', pk=pk)
 
-    # Kiểm tra xem đã trả lời chưa
     if request.user.is_authenticated:
         has_responded = Response.objects.filter(survey=survey, respondent=request.user).exists()
         if has_responded:
@@ -662,7 +609,6 @@ def survey_take(request, pk):
             else:
                 return redirect('surveys:survey_detail', pk=pk)
     else:
-        # Người dùng không đăng nhập: giới hạn theo session + IP (1 lần / khảo sát)
         if request.session.get(done_session_key):
             messages.info(request, 'Bạn đã tham gia khảo sát này rồi từ thiết bị này!')
             return redirect('surveys:survey_detail', pk=pk)
@@ -677,7 +623,6 @@ def survey_take(request, pk):
             return redirect('surveys:survey_detail', pk=pk)
     
     if request.method == 'POST':
-        # Validate required questions
         errors = []
         for question in survey.questions.all():
             field_name = f'question_{question.id}'
@@ -695,7 +640,6 @@ def survey_take(request, pk):
             for error in errors:
                 messages.error(request, error)
         else:
-            # Lưu tất cả câu trả lời vào response_data (JSONField)
             response_data = {}
             for question in survey.questions.all():
                 field_name = f'question_{question.id}'
@@ -705,7 +649,6 @@ def survey_take(request, pk):
                     if text_answer:
                         response_data[str(question.id)] = text_answer
                 elif question.question_type == 'single':
-                    # Lấy index của option được chọn
                     selected_index = request.POST.get(field_name)
                     if selected_index and question.options:
                         try:
@@ -715,7 +658,6 @@ def survey_take(request, pk):
                         except (ValueError, IndexError):
                             pass
                 elif question.question_type == 'multiple':
-                    # Lấy danh sách các index được chọn
                     selected_indices = request.POST.getlist(field_name)
                     if selected_indices and question.options:
                         selected_options = []
@@ -729,14 +671,12 @@ def survey_take(request, pk):
                         if selected_options:
                             response_data[str(question.id)] = selected_options
             
-            # Create response với response_data
             response = Response.objects.create(
                 survey=survey,
                 respondent=request.user if request.user.is_authenticated else None,
                 ip_address=get_client_ip(request),
                 response_data=response_data
             )
-            # Ghi nhận vào session để chặn gửi lại (khách)
             request.session[done_session_key] = True
             
             messages.success(request, 'Cảm ơn bạn đã tham gia khảo sát!')
@@ -751,7 +691,33 @@ def survey_take(request, pk):
         'survey': survey,
         'questions': questions,
         'need_password': False,
+        'back_url': back_url,
     })
+
+def survey_take_token(request, token):
+    """Truy cập khảo sát bằng link token hóa"""
+    try:
+        pk = signing.loads(token, salt="survey-share", max_age=None)
+    except signing.BadSignature:
+        messages.error(request, 'Link khảo sát không hợp lệ hoặc đã bị thay đổi.')
+        return redirect('surveys:home')
+    return redirect('surveys:survey_take', pk=pk)
+
+def custom_404(request, exception=None):
+    return render(request, 'errors/404.html', status=404)
+
+
+def custom_500(request):
+    return render(request, 'errors/500.html', status=500)
+
+
+def custom_502(request):
+    return render(request, 'errors/502.html', status=502)
+
+
+def custom_404_preview(request):
+    """Preview 404 page while DEBUG=True"""
+    return render(request, 'errors/404.html', status=404)
 
 
 @login_required
@@ -762,7 +728,6 @@ def survey_results(request, pk):
     responses = survey.responses.all()
     questions = survey.questions.all().order_by('order')
     
-    # Thống kê
     stats = []
     total_responses_count = responses.count()
     
@@ -773,7 +738,6 @@ def survey_results(request, pk):
             continue
         
         if question.question_type == 'text':
-            # Thu thập tất cả câu trả lời text
             text_answers = []
             for response in responses:
                 if response.response_data and question_id_str in response.response_data:
@@ -788,7 +752,6 @@ def survey_results(request, pk):
                 'total': len(text_answers)
             })
         else:
-            # Thống kê lựa chọn từ options (JSONField)
             choice_stats = []
             if question.options:
                 for idx, option_text in enumerate(question.options):
@@ -797,11 +760,9 @@ def survey_results(request, pk):
                         if response.response_data and question_id_str in response.response_data:
                             answer_value = response.response_data[question_id_str]
                             if question.question_type == 'single':
-                                # So sánh với option text
                                 if answer_value == option_text:
                                     count += 1
                             elif question.question_type == 'multiple':
-                                # Kiểm tra nếu option có trong danh sách
                                 if isinstance(answer_value, list) and option_text in answer_value:
                                     count += 1
                     
@@ -831,24 +792,21 @@ def survey_results(request, pk):
 
 @login_required
 def survey_export_csv(request, pk):
-    """Xuất kết quả khảo sát ra file CSV"""
     survey = get_object_or_404(Survey, pk=pk, creator=request.user)
 
     responses = survey.responses.all().order_by('submitted_at')
     questions = survey.questions.all().order_by('order')
 
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = f'attachment; filename="survey_{survey.pk}_responses.csv"'
-    response.write("\ufeff")  # BOM
-    writer = csv.writer(response, delimiter=';')
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="khao_sat_{survey.pk}_ket_qua.csv"'
+    response.write("\ufeff")  # BOM for Excel compatibility
+    writer = csv.writer(response, delimiter=',')
     header = ['Thời gian']
     for question in questions:
         header.append(question.text)
     writer.writerow(header)
 
-    # Ghi từng dòng dữ liệu
     for resp in responses:
-        # Thời gian theo định dạng dễ đọc (giống Google Form)
         submitted_local = timezone.localtime(resp.submitted_at)
         time_display = submitted_local.strftime("%d/%m/%Y %H:%M:%S")
         row = [time_display]
@@ -869,17 +827,118 @@ def survey_export_csv(request, pk):
     return response
 
 
+@login_required
+def survey_export_excel(request, pk):
+    """Xuất kết quả khảo sát ra file Excel với định dạng đẹp"""
+    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    
+    responses = survey.responses.all().order_by('submitted_at')
+    questions = survey.questions.all().order_by('order')
+    
+    # Tạo workbook và worksheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Khảo sát {survey.pk}"
+    
+    # Định dạng cho header
+    header_fill = PatternFill(start_color="5B2C6F", end_color="5B2C6F", fill_type="solid")  # Màu tím
+    header_font = Font(bold=True, color="FFFFFF", size=12)  # Chữ trắng, đậm
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
+    )
+    
+    # Tạo header row
+    headers = ['Thời gian']
+    for question in questions:
+        headers.append(question.text)
+    
+    # Ghi header
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Định dạng cho data rows
+    data_alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    alternate_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")  # Màu xám nhạt
+    
+    # Ghi dữ liệu
+    for row_num, resp in enumerate(responses, 2):
+        submitted_local = timezone.localtime(resp.submitted_at)
+        time_display = submitted_local.strftime("%d/%m/%Y %H:%M:%S")
+        
+        # Cột thời gian
+        cell = ws.cell(row=row_num, column=1)
+        cell.value = time_display
+        cell.alignment = data_alignment
+        cell.border = border
+        if row_num % 2 == 0:  # Dòng chẵn có màu nền
+            cell.fill = alternate_fill
+        
+        # Các cột câu trả lời
+        for col_num, question in enumerate(questions, 2):
+            qid = str(question.id)
+            answer = ''
+            if resp.response_data and qid in resp.response_data:
+                value = resp.response_data[qid]
+                if isinstance(value, list):
+                    answer = ', '.join(str(v) for v in value)
+                else:
+                    answer = str(value)
+            
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = answer
+            cell.alignment = data_alignment
+            cell.border = border
+            if row_num % 2 == 0:  # Dòng chẵn có màu nền
+                cell.fill = alternate_fill
+    
+    # Tự động điều chỉnh độ rộng cột
+    for col_num in range(1, len(headers) + 1):
+        column_letter = get_column_letter(col_num)
+        max_length = 0
+        
+        # Tính độ dài tối đa của cột
+        for cell in ws[column_letter]:
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except:
+                pass
+        
+        # Đặt độ rộng (tối đa 50, tối thiểu 15)
+        adjusted_width = min(max(max_length + 2, 15), 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Đóng băng hàng đầu tiên
+    ws.freeze_panes = 'A2'
+    
+    # Tạo HTTP response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="khao_sat_{survey.pk}_ket_qua.xlsx"'
+    
+    # Lưu workbook vào response
+    wb.save(response)
+    
+    return response
+
+
 def get_client_ip(request):
-    """Lấy IP address của client"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
-
-
-# ========== AJAX API Endpoints ==========
 
 @login_required
 @require_http_methods(["POST"])
@@ -899,7 +958,6 @@ def question_add_ajax(request, survey_pk):
             media_url=data.get('media_url', '')
         )
         
-        # Lưu options vào JSONField
         options_data = data.get('choices', []) or data.get('options', [])
         question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
         question.save()
@@ -920,11 +978,9 @@ def question_add_ajax(request, survey_pk):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
-
 @login_required
 @require_http_methods(["POST"])
 def question_update_ajax(request, pk):
-    """API AJAX để cập nhật câu hỏi"""
     question = get_object_or_404(Question, pk=pk)
     
     if question.survey.creator != request.user:
@@ -939,12 +995,10 @@ def question_update_ajax(request, pk):
         question.subtitle = data.get('subtitle', question.subtitle)
         question.media_url = data.get('media_url', question.media_url)
         
-        # Cập nhật options nếu có
         if 'choices' in data or 'options' in data:
             options_data = data.get('choices', []) or data.get('options', [])
             question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
 
-        # Cập nhật đáp án đúng cho chế độ Quiz nếu có
         if 'correct_answers' in data:
             raw_correct = data.get('correct_answers') or []
             cleaned = []
