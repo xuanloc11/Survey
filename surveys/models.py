@@ -12,6 +12,8 @@ class Survey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ngày cập nhật")
     is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
+    is_deleted = models.BooleanField(default=False, verbose_name="Đã xóa (soft delete)")
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="Thời gian xóa")
     expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Hết hạn vào")
     is_quiz = models.BooleanField(default=False, verbose_name="Chế độ Quiz (có đáp án đúng / tính điểm)")
     max_responses = models.PositiveIntegerField(

@@ -7,13 +7,13 @@ from .models import Survey, Question, Response, UserProfile
 class SurveyForm(forms.ModelForm):
     class Meta:
         model = Survey
-        fields = ['title', 'description', 'header_image', 'is_active', 'is_quiz', 'expires_at', 'max_responses', 'password', 'whitelist_emails', 'allow_review_response', 'send_confirmation_email', 'one_response_only']
+        # Quiz mode is disabled in this project (feature turned off)
+        fields = ['title', 'description', 'header_image', 'is_active', 'expires_at', 'max_responses', 'password', 'whitelist_emails', 'allow_review_response', 'send_confirmation_email', 'one_response_only']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập tiêu đề khảo sát'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Nhập mô tả khảo sát'}),
             'header_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'is_quiz': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'expires_at': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'max_responses': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'placeholder': 'Ví dụ: 100'}),
             'password': forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Nhập mật khẩu khảo sát (tùy chọn)'}, render_value=False),
@@ -27,7 +27,6 @@ class SurveyForm(forms.ModelForm):
             'description': 'Mô tả',
             'header_image': 'Ảnh tiêu đề (tùy chọn)',
             'is_active': 'Đang hoạt động',
-            'is_quiz': 'Sử dụng chế độ Quiz (có đáp án đúng, chấm điểm)',
             'expires_at': 'Hết hạn vào',
             'max_responses': 'Giới hạn số phản hồi',
             'password': 'Mật khẩu khảo sát',

@@ -237,15 +237,6 @@
                         <i class="bi bi-{% if question.question_type == 'single' %}circle{% else %}square{% endif %}"></i>
                         <input type="text" class="choice-input" value="{{ choice }}" 
                                placeholder="Lựa chọn" data-choice-id="{{ forloop.counter0 }}">
-                        {% if survey.is_quiz %}
-                        <button class="btn-icon correct-toggle {% if question.correct_answers and forloop.counter0 in question.correct_answers %}text-warning{% endif %}"
-                                type="button"
-                                data-choice-index="{{ forloop.counter0 }}"
-                                onclick="toggleCorrectAnswer({{ question.id }}, {{ forloop.counter0 }}, this)"
-                                title="Đáp án đúng">
-                            <i class="bi bi-star-fill"></i>
-                        </button>
-                        {% endif %}
                         <button class="btn-icon" onclick="deleteChoice({{ question.id }}, {{ forloop.counter0 }})">
                             <i class="bi bi-x"></i>
                         </button>
@@ -506,13 +497,9 @@
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="id_is_quiz" name="is_quiz" {% if survey.is_quiz %}checked{% endif %}>
-                                <label class="form-check-label" for="id_is_quiz">
-                                    Sử dụng chế độ Quiz (có đáp án đúng, chấm điểm)
-                                </label>
-                            </div>
+                        <div class="alert alert-info py-2">
+                            <i class="bi bi-info-circle"></i>
+                            Chế độ <strong>Quiz</strong> hiện đang được <strong>tắt</strong> trong hệ thống.
                         </div>
                         <div class="mb-3">
                             <label for="id_max_responses" class="form-label">Giới hạn số phản hồi</label>
@@ -669,7 +656,8 @@
 <script>
 const surveyId = Number('{{ survey.pk }}');
 const csrfToken = '{{ csrf_token }}';
-const surveyIsQuiz = {{ survey.is_quiz|yesno:'true,false' }};
+// Quiz mode is disabled globally
+const surveyIsQuiz = false;
 
 // Biến lưu trữ Quill editor instance
 let subtitleQuillEditor = null;

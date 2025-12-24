@@ -19,11 +19,15 @@ class SurveyAdmin(admin.ModelAdmin):
     inlines = [QuestionInline]
     list_display = ('title', 'creator', 'created_at', 'is_active')
     search_fields = ('title',)
+    # Quiz mode is disabled in this project
+    exclude = ('is_quiz',)
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ('text', 'survey', 'question_type', 'is_required')
     list_filter = ('survey', 'question_type')
+    # Quiz mode is disabled in this project
+    exclude = ('correct_answers', 'score')
 
 @admin.register(Response)
 class ResponseAdmin(admin.ModelAdmin):

@@ -16,6 +16,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.core import signing
 from uuid import uuid4
+from urllib.parse import quote
 import json
 import csv
 import requests
@@ -241,17 +242,17 @@ def profile_view(request):
 def home(request):
     """Landing page chính, giới thiệu sản phẩm trước khi vào khảo sát"""
     context = {
-        'total_surveys': Survey.objects.filter(is_active=True).count(),
+        'total_surveys': Survey.objects.filter(is_active=True, is_deleted=False).count(),
         'total_responses': Response.objects.count(),
     }
     return render(request, 'surveys/pages/home.html', context)
 @login_required
 def dashboard(request):
     """Trang dashboard cho người dùng đã đăng nhập"""
-    total_surveys = Survey.objects.count()
+    total_surveys = Survey.objects.filter(is_deleted=False).count()
     total_responses = Response.objects.count()
 
-    user_surveys = Survey.objects.filter(creator=request.user).annotate(
+    user_surveys = Survey.objects.filter(creator=request.user, is_deleted=False).annotate(
         response_count=Count('responses')
     ).order_by('-created_at')
     user_surveys_count = user_surveys.count()
@@ -270,7 +271,7 @@ def dashboard(request):
 @login_required
 def survey_list(request):
     """Danh sách khảo sát của người dùng"""
-    surveys = Survey.objects.filter(creator=request.user).annotate(
+    surveys = Survey.objects.filter(creator=request.user, is_deleted=False).annotate(
         response_count=Count('responses')
     ).order_by('-created_at')
     
@@ -287,6 +288,8 @@ def survey_create(request):
         if form.is_valid():
             survey = form.save(commit=False)
             survey.creator = request.user
+            # Quiz mode is disabled globally
+            survey.is_quiz = False
             raw_password = form.cleaned_data.get('password')
             if raw_password:
                 survey.password = make_password(raw_password)
@@ -312,6 +315,8 @@ def survey_edit(request, pk):
         form = SurveyForm(request.POST, request.FILES, instance=survey)
         if form.is_valid():
             survey = form.save(commit=False)
+            # Quiz mode is disabled globally
+            survey.is_quiz = False
             raw_password = form.cleaned_data.get('password')
             if raw_password:
                 survey.password = make_password(raw_password)
@@ -421,12 +426,15 @@ def survey_detail(request, pk):
 
 @login_required
 def survey_delete(request, pk):
-    """Xóa khảo sát"""
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    """Xóa mềm khảo sát (không xóa DB)"""
+    survey = get_object_or_404(Survey, pk=pk, creator=request.user, is_deleted=False)
     
     if request.method == 'POST':
-        survey.delete()
-        messages.success(request, 'Đã xóa khảo sát thành công!')
+        survey.is_deleted = True
+        survey.is_active = False  # đảm bảo khảo sát không nhận phản hồi nữa
+        survey.deleted_at = timezone.now()
+        survey.save(update_fields=['is_deleted', 'is_active', 'deleted_at'])
+        messages.success(request, 'Đã xóa khảo sát (xóa mềm). Khảo sát sẽ ngừng nhận phản hồi.')
         return redirect('surveys:survey_list')
     
     return render(request, 'surveys/survey_management/survey_confirm_delete.html', {
@@ -570,8 +578,8 @@ def survey_take(request, pk):
     if not back_url:
         back_url = reverse('surveys:survey_detail', args=[survey.pk])
     
-    # Kiểm tra xem khảo sát có đang hoạt động không
-    if not survey.is_active:
+    # Kiểm tra xem khảo sát có đang hoạt động không (hoặc đã bị xóa mềm)
+    if (not survey.is_active) or getattr(survey, 'is_deleted', False):
         return render(request, 'surveys/survey_management/survey_take.html', {
             'survey': survey,
             'questions': [],
@@ -587,6 +595,12 @@ def survey_take(request, pk):
     
     whitelist_raw = survey.whitelist_emails or ""
     whitelist = {email.strip().lower() for email in whitelist_raw.splitlines() if email.strip()}
+
+    # Nếu có whitelist thì bắt buộc phải đăng nhập (ẩn danh KHÔNG được tham gia)
+    if whitelist and not request.user.is_authenticated:
+        messages.error(request, 'Khảo sát này yêu cầu đăng nhập bằng email nằm trong whitelist.')
+        next_url = quote(request.get_full_path(), safe="/?=&")
+        return redirect(f"{reverse('surveys:login')}?next={next_url}")
 
     responses_count = survey.responses.count()
     if survey.max_responses and responses_count >= survey.max_responses:
@@ -615,7 +629,10 @@ def survey_take(request, pk):
         return redirect('surveys:survey_detail', pk=pk)
     
     if whitelist and request.user.is_authenticated:
-        user_email = (request.user.email or '').lower()
+        user_email = (request.user.email or '').strip().lower()
+        if not user_email:
+            messages.error(request, 'Tài khoản của bạn chưa có email nên không thể tham gia khảo sát whitelist. Vui lòng cập nhật email trong hồ sơ.')
+            return redirect('surveys:profile')
         if user_email not in whitelist and request.user != survey.creator:
             messages.error(request, 'Email của bạn không nằm trong whitelist tham gia khảo sát.')
             return redirect('surveys:survey_detail', pk=pk)
@@ -805,7 +822,6 @@ def survey_take(request, pk):
                     # Gửi email xác nhận nếu có bật
                     try:
                         from django.template.loader import render_to_string
-                        from django.utils import timezone
                         
                         email_context = {
                             'survey': survey,
@@ -1206,17 +1222,9 @@ def question_update_ajax(request, pk):
         if 'choices' in data or 'options' in data:
             options_data = data.get('choices', []) or data.get('options', [])
             question.options = [opt.strip() for opt in options_data if opt and opt.strip()]
-
-        if 'correct_answers' in data:
-            raw_correct = data.get('correct_answers') or []
-            cleaned = []
-            for idx in raw_correct:
-                try:
-                    i = int(idx)
-                    cleaned.append(i)
-                except (TypeError, ValueError):
-                    continue
-            question.correct_answers = cleaned
+        # Quiz mode is disabled: ignore any correct_answers updates
+        if question.correct_answers:
+            question.correct_answers = []
 
         question.save()
         
@@ -1229,7 +1237,7 @@ def question_update_ajax(request, pk):
             'is_required': question.is_required,
             'order': question.order,
             'options': question.options or [],
-            'correct_answers': question.correct_answers or [],
+            'correct_answers': [],  # quiz disabled
             'subtitle': question.subtitle,
             'media_url': question.media_url
             }

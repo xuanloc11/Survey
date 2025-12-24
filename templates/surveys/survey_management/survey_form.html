@@ -68,7 +68,9 @@
                     <div class="text-danger small">{{ form.max_responses.errors }}</div>
                     {% endif %}
                 </div>
+            </div>
 
+            <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="{{ form.whitelist_emails.id_for_label }}" class="form-label">
                         {{ form.whitelist_emails.label }}
@@ -80,9 +82,6 @@
                     {% endif %}
                 </div>
 
-            </div>
-
-            <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="{{ form.password.id_for_label }}" class="form-label">
                         {{ form.password.label }}
@@ -92,15 +91,6 @@
                     {% if form.password.errors %}
                     <div class="text-danger small">{{ form.password.errors }}</div>
                     {% endif %}
-                </div>
-
-                <div class="col-md-6 mb-3">
-                    <div class="form-check form-switch mt-2">
-                        {{ form.is_quiz }}
-                        <label class="form-check-label" for="{{ form.is_quiz.id_for_label }}">
-                            {{ form.is_quiz.label }}
-                        </label>
-                    </div>
                 </div>
             </div>
 
