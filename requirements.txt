@@ -1,16 +1,11 @@
-# Django Framework
 Django>=5.2.0
 
-# PostgreSQL Database Adapter
 psycopg2-binary>=2.9.0
 
-# Environment Variables
 python-dotenv>=1.0.0
 
-# Excel Export
 openpyxl>=3.1.0
 
-# HTTP Requests (for Cloudflare Turnstile verification)
 requests>=2.31.0
 
 gunicorn

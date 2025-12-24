@@ -1,0 +1,20 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{# Breadcrumb fix: skip the "Xác thực và ủy quyền" (auth app) middle crumb for the User list #}
+{% block breadcrumbs %}
+  <div class="mb-6">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb bg-white rounded-lg shadow-sm px-4 py-2">
+        <li class="breadcrumb-item">
+          <a href="{% url 'admin:index' %}" class="text-blue-600 hover:text-blue-800">
+            <i class="bi bi-house-door"></i> Trang chủ
+          </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">Quản lí người dùng</li>
+      </ol>
+    </nav>
+  </div>
+{% endblock %}
+
+

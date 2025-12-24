@@ -56,6 +56,12 @@
                 
                 <div class="flex items-center space-x-4">
                     {% if user.is_authenticated %}
+                    <a href="{% url 'surveys:survey_list' %}"
+                       class="flex items-center gap-2 text-white hover:text-gray-200 transition-colors px-3 py-2 rounded-md border border-white/20 hover:border-white/30"
+                       title="Quay lại Khảo sát của tôi">
+                        <i class="bi bi-arrow-left-circle text-lg"></i>
+                        <span class="text-sm font-semibold">Khảo sát của tôi</span>
+                    </a>
                     <div class="flex items-center space-x-3 text-white">
                         <i class="bi bi-person-circle text-2xl"></i>
                         <div class="flex flex-col">
@@ -63,9 +69,9 @@
                             <span class="text-xs opacity-75">{{ user.get_username }}</span>
                         </div>
                     </div>
-                    <form action="{% url 'admin:logout' %}" method="post" class="m-0">
+                    <form action="{% url 'admin:logout' %}" method="post" class="m-0 ml-2">
                         {% csrf_token %}
-                        <button type="submit" class="text-white hover:text-gray-200 transition-colors bg-transparent border-0 p-0">
+                        <button type="submit" class="text-white hover:text-gray-200 transition-colors bg-transparent border-0 px-2 py-1">
                             <i class="bi bi-box-arrow-right text-xl"></i>
                         </button>
                     </form>

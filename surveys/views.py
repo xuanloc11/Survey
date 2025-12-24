@@ -277,7 +277,7 @@ def survey_list(request):
     context = {
         'surveys': surveys,
     }
-    return render(request, 'surveys/survey/survey_list.html', context)
+    return render(request, 'surveys/survey_management/survey_list.html', context)
 
 @login_required
 def survey_create(request):
@@ -297,7 +297,7 @@ def survey_create(request):
     else:
         form = SurveyForm(initial={'is_active': False})
     
-    return render(request, 'surveys/survey/survey_form.html', {
+    return render(request, 'surveys/survey_management/survey_form.html', {
         'form': form,
         'title': 'Tạo khảo sát mới'
     })
@@ -321,7 +321,7 @@ def survey_edit(request, pk):
     else:
         form = SurveyForm(instance=survey)
     
-    return render(request, 'surveys/survey/survey_form.html', {
+    return render(request, 'surveys/survey_management/survey_form.html', {
         'form': form,
         'survey': survey,
         'title': 'Chỉnh sửa khảo sát'
@@ -340,7 +340,7 @@ def survey_detail(request, pk):
     remaining_slots = max_responses - responses_count if max_responses else None
     
     can_edit = request.user.is_authenticated and request.user == survey.creator
-    template_name = 'surveys/survey/survey_builder.html' if can_edit else 'surveys/survey/survey_detail.html'
+    template_name = 'surveys/survey_management/survey_builder.html' if can_edit else 'surveys/survey_management/survey_detail.html'
     
     context = {
         'survey': survey,
@@ -429,7 +429,7 @@ def survey_delete(request, pk):
         messages.success(request, 'Đã xóa khảo sát thành công!')
         return redirect('surveys:survey_list')
     
-    return render(request, 'surveys/survey/survey_confirm_delete.html', {
+    return render(request, 'surveys/survey_management/survey_confirm_delete.html', {
         'survey': survey
     })
 
@@ -549,9 +549,18 @@ def choice_add(request, question_pk):
 
 def survey_take(request, pk):
     """Trang làm khảo sát"""
-    survey = get_object_or_404(Survey, pk=pk, is_active=True)
+    survey = get_object_or_404(Survey, pk=pk)
     session_key = f'survey_access_{survey.id}'
     done_session_key = f'survey_done_{survey.id}'
+
+    # Default back destination:
+    # - Logged in: My surveys
+    # - Anonymous: Home
+    default_back_url = (
+        reverse('surveys:survey_list')
+        if request.user.is_authenticated
+        else reverse('surveys:home')
+    )
 
     back_url = request.META.get('HTTP_REFERER')
     current_url = request.build_absolute_uri(request.get_full_path())
@@ -560,6 +569,16 @@ def survey_take(request, pk):
             back_url = None
     if not back_url:
         back_url = reverse('surveys:survey_detail', args=[survey.pk])
+    
+    # Kiểm tra xem khảo sát có đang hoạt động không
+    if not survey.is_active:
+        return render(request, 'surveys/survey_management/survey_take.html', {
+            'survey': survey,
+            'questions': [],
+            'survey_closed': True,
+            # Avoid referer loops; always send users to an appropriate safe page.
+            'back_url': default_back_url,
+        })
 
     if not request.session.session_key:
         request.session.create()
@@ -584,7 +603,7 @@ def survey_take(request, pk):
                     return redirect('surveys:survey_take', pk=pk)
                 else:
                     messages.error(request, 'Mật khẩu không đúng. Vui lòng thử lại.')
-            return render(request, 'surveys/survey/survey_take.html', {
+            return render(request, 'surveys/survey_management/survey_take.html', {
                 'survey': survey,
                 'questions': [],
                 'need_password': True,
@@ -674,7 +693,7 @@ def survey_take(request, pk):
             if not cf_response:
                 messages.error(request, 'Vui lòng hoàn thành xác minh captcha.')
                 questions = survey.questions.all()
-                return render(request, 'surveys/survey/survey_take.html', {
+                return render(request, 'surveys/survey_management/survey_take.html', {
                     'survey': survey,
                     'questions': questions,
                     'need_password': False,
@@ -697,7 +716,7 @@ def survey_take(request, pk):
                     error_codes = verify_result.get('error-codes', [])
                     messages.error(request, 'Xác minh captcha thất bại. Vui lòng thử lại.')
                     questions = survey.questions.all()
-                    return render(request, 'surveys/survey/survey_take.html', {
+                    return render(request, 'surveys/survey_management/survey_take.html', {
                         'survey': survey,
                         'questions': questions,
                         'need_password': False,
@@ -707,7 +726,7 @@ def survey_take(request, pk):
             except requests.RequestException as e:
                 messages.error(request, 'Không thể xác minh captcha. Vui lòng thử lại sau.')
                 questions = survey.questions.all()
-                return render(request, 'surveys/survey/survey_take.html', {
+                return render(request, 'surveys/survey_management/survey_take.html', {
                     'survey': survey,
                     'questions': questions,
                     'need_password': False,
@@ -816,7 +835,7 @@ def survey_take(request, pk):
     
     questions = survey.questions.all()
     
-    return render(request, 'surveys/survey/survey_take.html', {
+    return render(request, 'surveys/survey_management/survey_take.html', {
         'survey': survey,
         'questions': questions,
         'need_password': False,
@@ -871,7 +890,7 @@ def survey_review_response(request, response_id):
                 'answer': answer
             })
     
-    return render(request, 'surveys/survey/survey_review.html', {
+    return render(request, 'surveys/survey_management/survey_review.html', {
         'survey': survey,
         'response': response,
         'questions_with_answers': questions_with_answers,
@@ -879,14 +898,14 @@ def survey_review_response(request, response_id):
 
 def survey_thankyou(request, pk):
     """Trang cảm ơn sau khi hoàn thành khảo sát"""
-    survey = get_object_or_404(Survey, pk=pk, is_active=True)
+    survey = get_object_or_404(Survey, pk=pk)
     
     # Lấy email và thời gian hoàn thành
     user_email = None
     if request.user.is_authenticated:
         user_email = request.user.email
     
-    return render(request, 'surveys/survey/survey_thankyou.html', {
+    return render(request, 'surveys/survey_management/survey_thankyou.html', {
         'survey': survey,
         'user_email': user_email,
         'completion_time': timezone.now(),
@@ -976,7 +995,7 @@ def survey_results(request, pk):
         'stats': stats,
         'total_responses': total_responses_count
     }
-    return render(request, 'surveys/survey/survey_results.html', context)
+    return render(request, 'surveys/survey_management/survey_results.html', context)
 
 
 @login_required

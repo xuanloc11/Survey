@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{# Fix: Django's default admin/app_index.html extends admin/index.html.
+   Since this project customizes admin/index.html as a dashboard, app pages like /admin/auth/
+   were rendering the dashboard with missing context (showing 0s).
+   This template renders a proper app index without inheriting admin/index.html. #}
+
+{% block breadcrumbs_content %}
+  <li class="breadcrumb-item active" aria-current="page">
+    {{ app_config.verbose_name }}
+  </li>
+{% endblock %}
+
+{% block content %}
+  <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+    {% if app_list %}
+      {% for app in app_list %}
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">{{ app.name }}</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for model in app.models %}
+              <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="font-semibold text-gray-900">{{ model.name }}</div>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  {% if model.admin_url %}
+                    <a class="text-blue-600 hover:text-blue-800" href="{{ model.admin_url }}">{% trans "View" %}</a>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <a class="text-emerald-600 hover:text-emerald-800" href="{{ model.add_url }}">{% trans "Add" %}</a>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-gray-600">{% trans "You don’t have permission to view or edit anything." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}
+
+
