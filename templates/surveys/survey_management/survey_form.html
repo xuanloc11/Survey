@@ -48,6 +48,17 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
+                    <label for="{{ form.starts_at.id_for_label }}" class="form-label">
+                        {{ form.starts_at.label }}
+                    </label>
+                    {{ form.starts_at }}
+                    {% if form.starts_at.errors %}
+                    <div class="text-danger small">{{ form.starts_at.errors }}</div>
+                    {% endif %}
+                    <small class="form-text text-muted">Để trống nếu cho phép tham gia ngay</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
                     <label for="{{ form.expires_at.id_for_label }}" class="form-label">
                         {{ form.expires_at.label }}
                     </label>
@@ -57,7 +68,9 @@
                     {% endif %}
                     <small class="form-text text-muted">Để trống nếu không có thời hạn</small>
                 </div>
+            </div>
 
+            <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="{{ form.max_responses.id_for_label }}" class="form-label">
                         {{ form.max_responses.label }}
@@ -68,9 +81,7 @@
                     <div class="text-danger small">{{ form.max_responses.errors }}</div>
                     {% endif %}
                 </div>
-            </div>
 
-            <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="{{ form.whitelist_emails.id_for_label }}" class="form-label">
                         {{ form.whitelist_emails.label }}
@@ -81,7 +92,10 @@
                     <div class="text-danger small">{{ form.whitelist_emails.errors }}</div>
                     {% endif %}
                 </div>
+            </div>
 
+            <div class="row">
+                <div class="col-md-6 mb-3"></div>
                 <div class="col-md-6 mb-3">
                     <label for="{{ form.password.id_for_label }}" class="form-label">
                         {{ form.password.label }}

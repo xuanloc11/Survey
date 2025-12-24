@@ -588,6 +588,17 @@ def survey_take(request, pk):
             'back_url': default_back_url,
         })
 
+    # Chưa tới thời điểm bắt đầu khảo sát
+    if getattr(survey, 'starts_at', None) and survey.starts_at > timezone.now():
+        return render(request, 'surveys/survey_management/survey_take.html', {
+            'survey': survey,
+            'questions': [],
+            'survey_closed': True,
+            'survey_closed_title': 'Khảo sát chưa mở',
+            'survey_closed_message': 'Khảo sát chưa đến thời gian bắt đầu nên hiện không nhận phản hồi.',
+            'back_url': default_back_url,
+        })
+
     if not request.session.session_key:
         request.session.create()
     if 'anon_session_id' not in request.session:

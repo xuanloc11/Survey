@@ -518,6 +518,12 @@
                             <small class="text-muted">Để trống nếu giữ nguyên / không dùng mật khẩu.</small>
                         </div>
                         <div class="mb-3">
+                            <label for="id_starts_at" class="form-label">Bắt đầu khảo sát</label>
+                            <input type="datetime-local" class="form-control" id="id_starts_at" name="starts_at"
+                                   value="{% if survey.starts_at %}{{ survey.starts_at|date:'Y-m-d\\TH:i' }}{% endif %}">
+                            <small class="text-muted">Để trống nếu cho phép tham gia ngay</small>
+                        </div>
+                        <div class="mb-3">
                             <label for="id_expires_at" class="form-label">Hết hạn vào</label>
                             <input type="datetime-local" class="form-control" id="id_expires_at" name="expires_at" 
                                    value="{% if survey.expires_at %}{{ survey.expires_at|date:'Y-m-d\TH:i' }}{% endif %}">
@@ -658,6 +664,38 @@ const surveyId = Number('{{ survey.pk }}');
 const csrfToken = '{{ csrf_token }}';
 // Quiz mode is disabled globally
 const surveyIsQuiz = false;
+
+// Prevent selecting past datetime in builder settings (starts_at / expires_at)
+function toDatetimeLocalValue(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const nowVal = toDatetimeLocalValue(new Date());
+    const startsInput = document.getElementById('id_starts_at');
+    const expiresInput = document.getElementById('id_expires_at');
+    if (startsInput) startsInput.min = nowVal;
+    if (expiresInput) expiresInput.min = nowVal;
+
+    if (startsInput && expiresInput) {
+        const syncExpiresMin = () => {
+            const startVal = startsInput.value;
+            if (startVal) {
+                expiresInput.min = startVal > nowVal ? startVal : nowVal;
+            } else {
+                expiresInput.min = nowVal;
+            }
+        };
+        startsInput.addEventListener('change', syncExpiresMin);
+        syncExpiresMin();
+    }
+});
 
 // Biến lưu trữ Quill editor instance
 let subtitleQuillEditor = null;

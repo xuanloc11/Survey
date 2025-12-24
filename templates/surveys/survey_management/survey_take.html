@@ -15,8 +15,10 @@
         {% if survey_closed %}
         <div class="alert alert-warning text-center py-5">
             <i class="bi bi-lock-fill" style="font-size: 3rem;"></i>
-            <h4 class="mt-3 mb-3">Khảo sát đã đóng</h4>
-            <p class="mb-4">Khảo sát này hiện đã ngừng nhận phản hồi. Vui lòng liên hệ người tạo khảo sát để biết thêm thông tin.</p>
+            <h4 class="mt-3 mb-3">{{ survey_closed_title|default:"Khảo sát đã đóng" }}</h4>
+            <p class="mb-4">
+                {{ survey_closed_message|default:"Khảo sát này hiện đã ngừng nhận phản hồi. Vui lòng liên hệ người tạo khảo sát để biết thêm thông tin." }}
+            </p>
             <a href="{{ back_url }}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Quay lại
             </a>
