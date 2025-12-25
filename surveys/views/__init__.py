@@ -28,7 +28,13 @@ from .survey import (  # noqa: F401
     survey_create,
     survey_edit,
     survey_detail,
+    survey_detail_token,
     survey_delete,
+)
+
+# Collaborators / roles (owner only)
+from .collaborators import (  # noqa: F401
+    survey_collaborators,
 )
 
 # Question & choice management (creator)
@@ -43,6 +49,7 @@ from .questions import (  # noqa: F401
 from .take import (  # noqa: F401
     survey_take,
     survey_take_token,
+    survey_edit_token,
     survey_review_response,
     survey_thankyou,
 )

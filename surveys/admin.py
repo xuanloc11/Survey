@@ -7,7 +7,7 @@ from datetime import timedelta
 import json
 
 # Chỉ import những model còn tồn tại
-from .models import Survey, Question, Response, UserProfile
+from .models import Survey, Question, Response, UserProfile, SurveyCollaborator
 
 # Inline để thêm câu hỏi ngay trong trang chi tiết Khảo sát
 class QuestionInline(admin.StackedInline):
@@ -48,6 +48,13 @@ class ResponseAdmin(admin.ModelAdmin):
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'avatar')
     search_fields = ('user__username', 'user__email')
+
+
+@admin.register(SurveyCollaborator)
+class SurveyCollaboratorAdmin(admin.ModelAdmin):
+    list_display = ('survey', 'user', 'role', 'created_at')
+    list_filter = ('role',)
+    search_fields = ('survey__title', 'user__username', 'user__email')
 
 # Custom Admin Site
 from django.contrib.admin import AdminSite

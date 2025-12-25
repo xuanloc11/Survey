@@ -149,13 +149,37 @@
 
                     <div class="mb-3">
                         <div class="fw-semibold mb-1">Đường link chia sẻ</div>
-                        <div class="input-group">
-                            <input type="text" readonly class="form-control" id="shareLinkInput" value="{{ share_link }}">
-                            <button class="btn btn-outline-secondary" type="button" id="copyShareLink">
-                                <i class="bi bi-clipboard"></i> Sao chép
-                            </button>
+
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">Chế độ</label>
+                                <select class="form-select" id="shareModeSelect">
+                                    <option value="view" selected>View</option>
+                                    <option value="edit">Edit</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label small text-muted mb-1">Link</label>
+                                <div class="input-group">
+                                    <input
+                                        type="text"
+                                        readonly
+                                        class="form-control"
+                                        id="shareLinkInput"
+                                        value="{{ share_link_view|default:share_link }}"
+                                        data-link-view="{{ share_link_view|default:share_link }}"
+                                        data-link-edit="{{ share_link_edit|default:'' }}"
+                                    >
+                                    <button class="btn btn-outline-secondary" type="button" id="copyShareLink">
+                                        <i class="bi bi-clipboard"></i> Sao chép
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-text">Bất kỳ ai có đường link đều có thể trả lời khi khảo sát đang hoạt động.</div>
+
+                        <div class="form-text" id="shareModeHelp">
+                            View: bất kỳ ai có link đều có thể làm khảo sát khi khảo sát đang hoạt động.
+                        </div>
                     </div>
 
                     <!-- Đảm bảo CSRF token sẵn có -->
@@ -219,6 +243,8 @@
         const publishStatusOff = document.getElementById('publishStatusOff');
         const copyBtn = document.getElementById('copyShareLink');
         const shareInput = document.getElementById('shareLinkInput');
+        const shareModeSelect = document.getElementById('shareModeSelect');
+        const shareModeHelp = document.getElementById('shareModeHelp');
         const publishBtn = document.getElementById('publishConfirmBtn');
         const csrfInput = document.getElementById('csrfTokenValue');
         const statusBadge = document.getElementById('surveyStatusBadge');
@@ -256,6 +282,27 @@
                     })
                     .catch(() => alert('Không thể sao chép. Hãy copy thủ công.'));
             });
+        }
+
+        if (shareModeSelect && shareInput) {
+            const applyShareMode = () => {
+                const mode = shareModeSelect.value || 'view';
+                const viewLink = shareInput.dataset.linkView || shareInput.value;
+                const editLink = shareInput.dataset.linkEdit || '';
+                if (mode === 'edit' && editLink) {
+                    shareInput.value = editLink;
+                    if (shareModeHelp) {
+                        shareModeHelp.textContent = 'Edit: bắt buộc đăng nhập. Ai truy cập link edit sẽ được cấp quyền Editor để chỉnh sửa.';
+                    }
+                } else {
+                    shareInput.value = viewLink;
+                    if (shareModeHelp) {
+                        shareModeHelp.textContent = 'View: bất kỳ ai có link đều có thể làm khảo sát khi khảo sát đang hoạt động.';
+                    }
+                }
+            };
+            applyShareMode();
+            shareModeSelect.addEventListener('change', applyShareMode);
         }
 
         if (publishToggle) {

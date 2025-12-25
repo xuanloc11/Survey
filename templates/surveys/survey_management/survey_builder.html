@@ -173,6 +173,13 @@
                         <i class="bi bi-gear"></i> Cài đặt
                     </button>
                 </li>
+                {% if user_role == 'owner' %}
+                <li class="nav-item ms-auto">
+                    <a class="nav-link" href="{% url 'surveys:survey_collaborators' survey.pk %}">
+                        <i class="bi bi-people"></i> Cộng tác viên
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </div>
     </div>
@@ -486,11 +493,6 @@
                                     Đang hoạt động
                                 </label>
                             </div>
-                        </div>
-
-                        <div class="alert alert-info py-2">
-                            <i class="bi bi-info-circle"></i>
-                            Chế độ <strong>Quiz</strong> hiện đang được <strong>tắt</strong> trong hệ thống.
                         </div>
                         <div class="mb-3">
                             <label for="id_max_responses" class="form-label">Giới hạn số phản hồi</label>

@@ -315,6 +315,38 @@ def survey_take_token(request, token):
     return redirect('surveys:survey_take', pk=pk)
 
 
+def survey_edit_token(request, token):
+    """
+    Shared EDIT link (like Google Forms):
+    - If not logged in: force login
+    - If logged in but not editor/owner: deny
+    - If allowed: open builder (survey_detail will render builder for can_edit)
+    """
+    try:
+        pk = signing.loads(token, salt="survey-share", max_age=None)
+    except signing.BadSignature:
+        messages.error(request, 'Link khảo sát không hợp lệ hoặc đã bị thay đổi.')
+        return redirect('surveys:home')
+
+    if not request.user.is_authenticated:
+        next_url = quote(request.get_full_path(), safe="/?=&")
+        return redirect(f"{reverse('surveys:login')}?next={next_url}")
+
+    from ..models import Survey, SurveyCollaborator
+
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+
+    # Mode B: anyone who is logged in and has the edit link becomes an Editor.
+    if request.user.id != survey.creator_id:
+        SurveyCollaborator.objects.get_or_create(
+            survey=survey,
+            user=request.user,
+            defaults={"role": SurveyCollaborator.ROLE_EDITOR},
+        )
+
+    return redirect('surveys:survey_detail', pk=pk)
+
+
 def survey_review_response(request, response_id):
     response = get_object_or_404(Response, pk=response_id)
     survey = response.survey

@@ -45,17 +45,26 @@
             </div>
         </div>
 
-        {% if can_edit %}
+        {% if can_edit or can_view_results %}
         <div class="btn-group">
+            {% if can_edit %}
             <a href="{% url 'surveys:question_add' survey.pk %}" class="btn btn-success">
                 <i class="bi bi-plus-circle"></i> Thêm câu hỏi
             </a>
             <a href="{% url 'surveys:survey_detail' survey.pk %}" class="btn btn-warning">
                 <i class="bi bi-pencil"></i> Mở Survey Builder
             </a>
+            {% endif %}
+            {% if can_view_results %}
             <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-info">
                 <i class="bi bi-graph-up"></i> Xem kết quả
             </a>
+            {% endif %}
+            {% if user_role == 'owner' %}
+            <a href="{% url 'surveys:survey_collaborators' survey.pk %}" class="btn btn-outline-secondary">
+                <i class="bi bi-people"></i> Cộng tác viên
+            </a>
+            {% endif %}
         </div>
         {% endif %}
     </div>

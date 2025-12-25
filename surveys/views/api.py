@@ -8,12 +8,16 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
 from ..models import Survey, Question
+from ..permissions import get_survey_access
 
 
 @login_required
 @require_http_methods(["POST"])
 def question_add_ajax(request, survey_pk):
-    survey = get_object_or_404(Survey, pk=survey_pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=survey_pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_edit:
+        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -53,7 +57,8 @@ def question_add_ajax(request, survey_pk):
 def question_update_ajax(request, pk):
     question = get_object_or_404(Question, pk=pk)
 
-    if question.survey.creator != request.user:
+    access = get_survey_access(request.user, question.survey)
+    if not access.can_edit:
         return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     try:
@@ -96,7 +101,8 @@ def question_update_ajax(request, pk):
 def question_delete_ajax(request, pk):
     question = get_object_or_404(Question, pk=pk)
 
-    if question.survey.creator != request.user:
+    access = get_survey_access(request.user, question.survey)
+    if not access.can_edit:
         return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     try:
@@ -109,7 +115,10 @@ def question_delete_ajax(request, pk):
 @login_required
 @require_http_methods(["POST"])
 def question_reorder_ajax(request, survey_pk):
-    survey = get_object_or_404(Survey, pk=survey_pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=survey_pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_edit:
+        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -126,7 +135,10 @@ def question_reorder_ajax(request, survey_pk):
 @login_required
 @require_http_methods(["POST"])
 def survey_publish_toggle_ajax(request, pk):
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_publish:
+        return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
     try:
         data = json.loads(request.body or "{}")
         is_active = bool(data.get('is_active', True))
@@ -142,7 +154,8 @@ def survey_publish_toggle_ajax(request, pk):
 def question_image_upload_ajax(request, pk):
     question = get_object_or_404(Question, pk=pk)
 
-    if question.survey.creator != request.user:
+    access = get_survey_access(request.user, question.survey)
+    if not access.can_edit:
         return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     image_file = request.FILES.get('image')
@@ -170,7 +183,8 @@ def question_image_upload_ajax(request, pk):
 def choice_add_ajax(request, question_pk):
     question = get_object_or_404(Question, pk=question_pk)
 
-    if question.survey.creator != request.user:
+    access = get_survey_access(request.user, question.survey)
+    if not access.can_edit:
         return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     try:
@@ -202,7 +216,8 @@ def choice_add_ajax(request, question_pk):
 def choice_delete_ajax(request, pk):
     question = get_object_or_404(Question, pk=pk)
 
-    if question.survey.creator != request.user:
+    access = get_survey_access(request.user, question.survey)
+    if not access.can_edit:
         return JsonResponse({'success': False, 'error': 'Không có quyền'}, status=403)
 
     try:

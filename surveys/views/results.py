@@ -10,12 +10,17 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from ..models import Survey
+from ..permissions import get_survey_access
 
 
 @login_required
 def survey_results(request, pk):
     """Kết quả khảo sát"""
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_view_results:
+        # Keep same UX as other views
+        return render(request, 'errors/404.html', status=404)
 
     responses = survey.responses.all()
     questions = survey.questions.all().order_by('order')
@@ -84,7 +89,10 @@ def survey_results(request, pk):
 
 @login_required
 def survey_export_csv(request, pk):
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_view_results:
+        return render(request, 'errors/404.html', status=404)
 
     responses = survey.responses.all().order_by('submitted_at')
     questions = survey.questions.all().order_by('order')
@@ -122,7 +130,10 @@ def survey_export_csv(request, pk):
 @login_required
 def survey_export_excel(request, pk):
     """Xuất kết quả khảo sát ra file Excel với định dạng đẹp"""
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_view_results:
+        return render(request, 'errors/404.html', status=404)
 
     responses = survey.responses.all().order_by('submitted_at')
     questions = survey.questions.all().order_by('order')

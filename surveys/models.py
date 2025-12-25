@@ -60,6 +60,48 @@ class Survey(models.Model):
         return self.title
 
 
+class SurveyCollaborator(models.Model):
+    ROLE_OWNER = "owner"
+    ROLE_EDITOR = "editor"
+    ROLE_VIEWER = "viewer"
+
+    ROLE_CHOICES = [
+        (ROLE_OWNER, "Owner"),
+        (ROLE_EDITOR, "Editor"),
+        (ROLE_VIEWER, "Viewer"),
+    ]
+
+    survey = models.ForeignKey(
+        Survey,
+        on_delete=models.CASCADE,
+        related_name="collaborators",
+        verbose_name="Khảo sát",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="survey_roles",
+        verbose_name="Người dùng",
+    )
+    role = models.CharField(
+        max_length=16,
+        choices=ROLE_CHOICES,
+        default=ROLE_VIEWER,
+        verbose_name="Vai trò",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày thêm")
+
+    class Meta:
+        verbose_name = "Phân quyền khảo sát"
+        verbose_name_plural = "Phân quyền khảo sát"
+        constraints = [
+            models.UniqueConstraint(fields=["survey", "user"], name="uniq_survey_user_role")
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.survey.title} ({self.role})"
+
+
 class Question(models.Model):
     QUESTION_TYPES = [
         ('text', 'Câu hỏi tự luận'),

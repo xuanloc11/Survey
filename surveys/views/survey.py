@@ -2,20 +2,25 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.contrib import messages
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.urls import reverse
-from django.core import signing
 
-from ..models import Survey
+from ..models import Survey, SurveyCollaborator
 from ..forms import SurveyForm
+from ..permissions import get_survey_access
+from ..tokens import make_survey_token, parse_survey_token
 
 
 @login_required
 def survey_list(request):
-    surveys = Survey.objects.filter(creator=request.user, is_deleted=False).annotate(
-        response_count=Count('responses')
-    ).order_by('-created_at')
+    surveys = (
+        Survey.objects.filter(is_deleted=False)
+        .filter(Q(creator=request.user) | Q(collaborators__user=request.user))
+        .distinct()
+        .annotate(response_count=Count('responses', distinct=True))
+        .order_by('-created_at')
+    )
 
     context = {
         'surveys': surveys,
@@ -36,8 +41,13 @@ def survey_create(request):
                 survey.password = make_password(raw_password)
             survey.is_active = False
             survey.save()
+            SurveyCollaborator.objects.get_or_create(
+                survey=survey,
+                user=request.user,
+                defaults={"role": SurveyCollaborator.ROLE_OWNER},
+            )
             messages.success(request, 'Đã tạo khảo sát ở trạng thái nháp. Hãy xuất bản khi sẵn sàng!')
-            return redirect('surveys:survey_detail', pk=survey.pk)
+            return redirect('surveys:survey_detail_token', token=make_survey_token(survey.pk))
     else:
         form = SurveyForm(initial={'is_active': False})
 
@@ -49,7 +59,11 @@ def survey_create(request):
 
 @login_required
 def survey_edit(request, pk):
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user)
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_edit:
+        messages.error(request, 'Bạn không có quyền chỉnh sửa khảo sát này!')
+        return redirect('surveys:survey_detail', pk=survey.pk)
 
     if request.method == 'POST':
         form = SurveyForm(request.POST, request.FILES, instance=survey)
@@ -61,7 +75,7 @@ def survey_edit(request, pk):
                 survey.password = make_password(raw_password)
             survey.save()
             messages.success(request, 'Đã cập nhật khảo sát thành công!')
-            return redirect('surveys:survey_detail', pk=survey.pk)
+            return redirect('surveys:survey_detail_token', token=make_survey_token(survey.pk))
     else:
         form = SurveyForm(instance=survey)
 
@@ -72,8 +86,21 @@ def survey_edit(request, pk):
     })
 
 
+def survey_detail_token(request, token):
+    """Chi tiết khảo sát (URL mã hóa token)"""
+    try:
+        pk = parse_survey_token(token)
+    except Exception:
+        return redirect('surveys:home')
+    return _survey_detail_core(request, pk)
+
+
 def survey_detail(request, pk):
-    """Chi tiết khảo sát"""
+    """Chi tiết khảo sát (URL cũ: /survey/<id>/) -> redirect sang URL token để không lộ ID"""
+    return redirect('surveys:survey_detail_token', token=make_survey_token(pk))
+
+
+def _survey_detail_core(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
     questions = survey.questions.all().order_by('order')
 
@@ -83,7 +110,9 @@ def survey_detail(request, pk):
     is_limit_reached = bool(max_responses) and responses_count >= max_responses
     remaining_slots = max_responses - responses_count if max_responses else None
 
-    can_edit = request.user.is_authenticated and request.user == survey.creator
+    access = get_survey_access(request.user, survey)
+    can_edit = access.can_edit
+    can_view_results = access.can_view_results
     template_name = 'surveys/survey_management/survey_builder.html' if can_edit else 'surveys/survey_management/survey_detail.html'
 
     context = {
@@ -93,9 +122,18 @@ def survey_detail(request, pk):
         'is_limit_reached': is_limit_reached,
         'remaining_slots': remaining_slots,
         'can_edit': can_edit,
+        'can_view_results': can_view_results,
+        'user_role': access.role,
         'builder_mode': can_edit,
         'share_link': request.build_absolute_uri(
-            reverse('surveys:survey_take_token', args=[signing.dumps(survey.pk, salt="survey-share")])
+            reverse('surveys:survey_take_token', args=[make_survey_token(survey.pk)])
+        ),
+        # Share links like Google Forms: view vs edit
+        'share_link_view': request.build_absolute_uri(
+            reverse('surveys:survey_take_token', args=[make_survey_token(survey.pk)])
+        ),
+        'share_link_edit': request.build_absolute_uri(
+            reverse('surveys:survey_edit_token', args=[make_survey_token(survey.pk)])
         ),
     }
 
@@ -163,7 +201,11 @@ def survey_detail(request, pk):
 
 @login_required
 def survey_delete(request, pk):
-    survey = get_object_or_404(Survey, pk=pk, creator=request.user, is_deleted=False)
+    survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
+    access = get_survey_access(request.user, survey)
+    if not access.can_delete:
+        messages.error(request, 'Bạn không có quyền xóa khảo sát này!')
+        return redirect('surveys:survey_detail', pk=survey.pk)
 
     if request.method == 'POST':
         survey.is_deleted = True
