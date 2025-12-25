@@ -206,16 +206,24 @@
     </div>
     {% endif %}
 
-    <!-- Messages -->
+    <!-- Messages (global).
+         Note: auth pages render messages inside their forms, so we avoid double messages here. -->
     {% if messages %}
-    <div class="container">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        {% if request.resolver_match and request.resolver_match.url_name == 'login'
+              or request.resolver_match.url_name == 'register'
+              or request.resolver_match.url_name == 'password_reset'
+              or request.resolver_match.url_name == 'password_reset_confirm' %}
+            {# no-op: these pages render messages inside the form card #}
+        {% else %}
+        <div class="container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+        {% endif %}
     {% endif %}
 
     <!-- Main Content -->
@@ -251,6 +259,7 @@
         if (!publishBtn) return;
 
         const surveyId = Number('{{ survey.pk }}');
+        const shareModeStorageKey = `survey_share_mode_${surveyId}`;
 
         function getCookie(name) {
             let cookieValue = null;
@@ -300,7 +309,21 @@
                         shareModeHelp.textContent = 'View: bất kỳ ai có link đều có thể làm khảo sát khi khảo sát đang hoạt động.';
                     }
                 }
+                try {
+                    localStorage.setItem(shareModeStorageKey, mode);
+                } catch (e) {
+                    // ignore
+                }
             };
+            // Restore last selected mode for this survey
+            try {
+                const savedMode = localStorage.getItem(shareModeStorageKey);
+                if (savedMode === 'edit' || savedMode === 'view') {
+                    shareModeSelect.value = savedMode;
+                }
+            } catch (e) {
+                // ignore
+            }
             applyShareMode();
             shareModeSelect.addEventListener('change', applyShareMode);
         }

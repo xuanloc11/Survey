@@ -24,7 +24,7 @@ def noop_reverse(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("surveys", "0017_survey_collaborator"),
+        ("surveys", "0017_surveycollaborator"),
     ]
 
     operations = [
