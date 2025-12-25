@@ -194,11 +194,6 @@
                         <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Chọn một</option>
                         <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
                     </optgroup>
-                    <optgroup label="Nội dung">
-                        <option value="section">Tiêu đề/Mô tả</option>
-                        <option value="image">Hình ảnh</option>
-                        <option value="video">Video</option>
-                    </optgroup>
                 </select>
                 {% else %}
                 <span class="badge bg-secondary ms-2">
@@ -448,10 +443,6 @@
                         <a href="{% url 'surveys:survey_results' survey.pk %}" class="btn btn-outline-primary">
                             <i class="bi bi-graph-up"></i> Xem trang kết quả chi tiết
                         </a>
-                    </div>
-                    <div class="mt-3">
-                        <small class="text-muted d-block"><strong>Excel (.xlsx)</strong>: Có định dạng đẹp, màu sắc, cột tự động rộng - phù hợp để xem và trình bày</small>
-                        <small class="text-muted d-block"><strong>CSV</strong>: File nhẹ, dễ import vào database hoặc công cụ phân tích dữ liệu</small>
                     </div>
                     <hr>
                     <small class="text-muted">
