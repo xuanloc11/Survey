@@ -4,7 +4,7 @@ Hệ thống khảo sát xây dựng bằng **Python/Django**: tạo khảo sát
 
 ## Tính năng chính
 
-- **Quản lý khảo sát**: tạo/sửa/xóa (soft delete), bật/tắt hoạt động, ảnh tiêu đề, thời gian bắt đầu/kết thúc.
+- **Quản lý khảo sát**: tạo/sửa/xóa, bật/tắt hoạt động, ảnh tiêu đề, thời gian bắt đầu/kết thúc.
 - **Câu hỏi**: text / single choice / multiple choice, bắt buộc/không bắt buộc, sắp xếp thứ tự.
 - **Giới hạn truy cập**:
   - **Mật khẩu khảo sát** (hash bằng Django).
@@ -27,7 +27,7 @@ Hệ thống khảo sát xây dựng bằng **Python/Django**: tạo khảo sát
 - `SurveyProject/`: cấu hình project (settings/urls/wsgi/asgi)
 - `surveys/`: app nghiệp vụ
   - `models.py`, `forms.py`, `migrations/`
-  - `views/`: tách view theo nhóm (dễ đọc hơn)
+  - `views/`: tách view theo nhóm
     - `auth.py`, `pages.py`, `survey.py`, `questions.py`, `take.py`, `results.py`, `api.py`, `errors.py`, `utils.py`
   - `urls.py`
 - `templates/`: giao diện Django templates

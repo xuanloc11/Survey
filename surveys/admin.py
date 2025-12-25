@@ -7,7 +7,7 @@ from datetime import timedelta
 import json
 
 # Chỉ import những model còn tồn tại
-from .models import Survey, Question, Response, UserProfile, SurveyCollaborator
+from .models import Survey, Question, Response, UserProfile, SurveyCollaborator, ResponseAttachment
 
 # Inline để thêm câu hỏi ngay trong trang chi tiết Khảo sát
 class QuestionInline(admin.StackedInline):
@@ -33,16 +33,24 @@ class QuestionAdmin(admin.ModelAdmin):
 class ResponseAdmin(admin.ModelAdmin):
     list_display = ('id', 'survey', 'respondent', 'submitted_at')
     readonly_fields = ('response_data_pretty',) # Chỉ đọc field này
+    inlines = ()
 
-    # Hàm giúp hiển thị JSON đẹp trong admin
     def response_data_pretty(self, instance):
         if not instance.response_data:
             return "{}"
-        # Format JSON thành chuỗi có thụt đầu dòng, hiển thị tiếng Việt đúng
         response_formatted = json.dumps(instance.response_data, ensure_ascii=False, indent=4)
         return format_html('<pre>{}</pre>', response_formatted)
 
     response_data_pretty.short_description = "Dữ liệu trả lời (Chi tiết)"
+
+
+class ResponseAttachmentInline(admin.TabularInline):
+    model = ResponseAttachment
+    extra = 0
+    readonly_fields = ("uploaded_at",)
+
+
+ResponseAdmin.inlines = (ResponseAttachmentInline,)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):

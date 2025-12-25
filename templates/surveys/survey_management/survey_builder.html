@@ -194,12 +194,13 @@
                 <span class="question-number">{{ forloop.counter }}.</span>
                 <input type="text" class="question-text" value="{{ question.text }}" 
                        data-question-id="{{ question.id }}" placeholder="Câu hỏi">
-                {% if question.question_type == 'text' or question.question_type == 'single' or question.question_type == 'multiple' %}
+                {% if question.question_type == 'text' or question.question_type == 'single' or question.question_type == 'multiple' or question.question_type == 'upload' %}
                 <select class="question-type-select" data-question-id="{{ question.id }}">
                     <optgroup label="Câu hỏi">
                         <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Tự luận</option>
                         <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Chọn một</option>
                         <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Chọn nhiều</option>
+                        <option value="upload" {% if question.question_type == 'upload' %}selected{% endif %}>Tải tệp (ảnh/video)</option>
                     </optgroup>
                 </select>
                 {% else %}
@@ -214,7 +215,7 @@
                 </span>
                 {% endif %}
                 <div class="question-actions d-flex align-items-center gap-2">
-                    {% if question.question_type == 'text' or question.question_type == 'single' or question.question_type == 'multiple' %}
+                    {% if question.question_type == 'text' or question.question_type == 'single' or question.question_type == 'multiple' or question.question_type == 'upload' %}
                     <div class="form-check form-switch mb-0">
                         <input class="form-check-input required-toggle" type="checkbox" role="switch"
                                id="required_{{ question.id }}"
@@ -378,6 +379,23 @@
                     </p>
                     {% endif %}
                     
+                    {% elif stat.type == 'upload' %}
+                    <p class="text-muted">Tổng số tệp đã tải lên: {{ stat.total }}</p>
+                    <div class="list-group">
+                        {% for att in stat.attachments %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="text-truncate me-3">
+                                <i class="bi bi-paperclip"></i>
+                                {{ att.original_name|default:att.file.name }}
+                            </div>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ att.file.url }}" target="_blank" rel="noopener">
+                                <i class="bi bi-box-arrow-up-right"></i> Mở
+                            </a>
+                        </div>
+                        {% empty %}
+                        <div class="alert alert-info">Chưa có tệp nào</div>
+                        {% endfor %}
+                    </div>
                     {% else %}
                     <p class="text-muted mb-3">Tổng số phản hồi: {{ stat.total }}</p>
                     
@@ -598,6 +616,7 @@
                         <option value="text">Tự luận</option>
                         <option value="single" selected>Chọn một</option>
                         <option value="multiple">Chọn nhiều</option>
+                        <option value="upload">Tải tệp (ảnh/video)</option>
                     </select>
                 </div>
                 
@@ -699,7 +718,7 @@ let inlineSubtitleEditors = {}; // Lưu các editor inline cho mỗi câu hỏi
 const chartInstances = {};
 const chartData = {
     {% for stat in stats %}
-    {% if stat.type != 'text' %}
+    {% if stat.type == 'single' or stat.type == 'multiple' %}
     {{ forloop.counter }}: {
         labels: [{% for choice_stat in stat.choices %}'{{ choice_stat.option|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
         data: [{% for choice_stat in stat.choices %}{{ choice_stat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}]
@@ -878,6 +897,13 @@ function showAddQuestionForm(defaultType) {
         choicesBlock.style.display = (type === 'single' || type === 'multiple') ? 'block' : 'none';
         
         if (type === 'text') {
+            subtitleBlock.style.display = 'none';
+            mediaBlock.style.display = 'none';
+            imageFileBlock.style.display = 'none';
+        }
+
+        if (type === 'upload') {
+            // Upload question: no choices, no media link, no image file (that's for content block 'image')
             subtitleBlock.style.display = 'none';
             mediaBlock.style.display = 'none';
             imageFileBlock.style.display = 'none';

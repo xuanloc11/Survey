@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.urls import reverse
 
 from ..models import Survey, SurveyCollaborator
+from ..models import ResponseAttachment
 from ..forms import SurveyForm
 from ..permissions import get_survey_access
 from ..tokens import make_survey_token, parse_survey_token
@@ -145,7 +146,7 @@ def _survey_detail_core(request, pk):
         for question in questions:
             question_id_str = str(question.id)
 
-            if question.question_type not in ['text', 'single', 'multiple']:
+            if question.question_type not in ['text', 'single', 'multiple', 'upload']:
                 continue
 
             if question.question_type == 'text':
@@ -161,6 +162,18 @@ def _survey_detail_core(request, pk):
                     'type': 'text',
                     'answers': text_answers[:10],
                     'total': len(text_answers)
+                })
+            elif question.question_type == 'upload':
+                q_attachments = (
+                    ResponseAttachment.objects
+                    .filter(response__survey=survey, question=question)
+                    .order_by("-uploaded_at")
+                )
+                stats.append({
+                    'question': question,
+                    'type': 'upload',
+                    'attachments': list(q_attachments[:10]),
+                    'total': q_attachments.count(),
                 })
             else:
                 choice_stats = []

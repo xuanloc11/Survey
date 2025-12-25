@@ -46,10 +46,7 @@ class SurveyAccess:
 
 
 def get_survey_access(user, survey: Survey) -> SurveyAccess:
-    """
-    Resolve the user's role on a survey.
-    Creator is always treated as owner (backwards compatible).
-    """
+
     if not user or isinstance(user, AnonymousUser) or not getattr(user, "is_authenticated", False):
         return SurveyAccess(role=None)
 

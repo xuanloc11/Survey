@@ -107,6 +107,7 @@ class Question(models.Model):
         ('text', 'Câu hỏi tự luận'),
         ('single', 'Chọn một đáp án'),  # Radio
         ('multiple', 'Chọn nhiều đáp án'),  # Checkbox
+        ('upload', 'Tải tệp (ảnh/video)'),
         ('section', 'Tiêu đề'),
         ('description', 'Mô tả'),
         ('image', 'Hình ảnh'),
@@ -149,6 +150,38 @@ class Response(models.Model):
 
     def __str__(self):
         return f"Response #{self.id} for {self.survey.title}"
+
+
+class ResponseAttachment(models.Model):
+    response = models.ForeignKey(
+        Response,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        verbose_name="Phản hồi",
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="response_attachments",
+        verbose_name="Câu hỏi",
+    )
+    file = models.FileField(
+        upload_to="response_uploads/%Y/%m/%d/",
+        verbose_name="Tệp (ảnh/video)",
+    )
+    original_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Tên file gốc")
+    content_type = models.CharField(max_length=100, blank=True, default="", verbose_name="MIME type")
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian upload")
+
+    class Meta:
+        verbose_name = "Tệp đính kèm phản hồi"
+        verbose_name_plural = "Tệp đính kèm phản hồi"
+        constraints = [
+            models.UniqueConstraint(fields=["response", "question"], name="uniq_response_question_attachment"),
+        ]
+
+    def __str__(self):
+        return f"Attachment #{self.id} for Response #{self.response_id} / Q{self.question_id}"
 
 
 class UserProfile(models.Model):

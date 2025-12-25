@@ -40,7 +40,7 @@
             </div>
         </form>
         {% else %}
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             
             {% for question in questions %}
@@ -112,6 +112,17 @@
                                 </label>
                             </div>
                             {% endfor %}
+                        </div>
+                        {% elif question.question_type == 'upload' %}
+                        <div class="form-group">
+                            <input class="form-control"
+                                   type="file"
+                                   name="question_{{ question.id }}"
+                                   accept="image/*,video/*"
+                                   {% if question.is_required %}required{% endif %}>
+                            <small class="text-muted d-block mt-2">
+                                Bạn có thể tải lên 1 ảnh hoặc 1 video từ máy của bạn.
+                            </small>
                         </div>
                         {% endif %}
                     {% endif %}

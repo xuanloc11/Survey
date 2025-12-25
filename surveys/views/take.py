@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.core import signing
 from django.core.mail import send_mail
 
-from ..models import Survey, Response
+from ..models import Survey, Response, ResponseAttachment
 from .utils import get_client_ip
 
 
@@ -208,12 +208,15 @@ def survey_take(request, pk):
         errors = []
         for question in survey.questions.all():
             field_name = f'question_{question.id}'
-            if question.question_type not in ['text', 'single', 'multiple']:
+            if question.question_type not in ['text', 'single', 'multiple', 'upload']:
                 continue
             if question.is_required:
                 if question.question_type == 'multiple':
                     if field_name not in request.POST or not request.POST.getlist(field_name):
                         errors.append(f'Vui lòng trả lời câu hỏi: {question.text}')
+                elif question.question_type == 'upload':
+                    if not request.FILES.get(field_name):
+                        errors.append(f'Vui lòng tải lên tệp cho câu hỏi: {question.text}')
                 else:
                     if field_name not in request.POST or not request.POST.get(field_name):
                         errors.append(f'Vui lòng trả lời câu hỏi: {question.text}')
@@ -223,6 +226,7 @@ def survey_take(request, pk):
                 messages.error(request, error)
         else:
             response_data = {}
+            pending_attachments = []  # list[(question, uploaded_file)]
             for question in survey.questions.all():
                 field_name = f'question_{question.id}'
 
@@ -252,6 +256,12 @@ def survey_take(request, pk):
                                 pass
                         if selected_options:
                             response_data[str(question.id)] = selected_options
+                elif question.question_type == 'upload':
+                    uploaded = request.FILES.get(field_name)
+                    if uploaded:
+                        # store something lightweight in JSON for backward compatibility (exports, admin)
+                        response_data[str(question.id)] = uploaded.name
+                        pending_attachments.append((question, uploaded))
 
             response = Response.objects.create(
                 survey=survey,
@@ -259,6 +269,18 @@ def survey_take(request, pk):
                 ip_address=get_client_ip(request),
                 response_data=response_data
             )
+
+            # Save uploaded attachments (one file per upload question)
+            for question, uploaded in pending_attachments:
+                ResponseAttachment.objects.update_or_create(
+                    response=response,
+                    question=question,
+                    defaults={
+                        "file": uploaded,
+                        "original_name": getattr(uploaded, "name", "") or "",
+                        "content_type": getattr(uploaded, "content_type", "") or "",
+                    },
+                )
             request.session[done_session_key] = True
             response_id_key = f'survey_response_{survey.id}'
             request.session[response_id_key] = response.id
@@ -368,13 +390,29 @@ def survey_review_response(request, response_id):
 
     questions = survey.questions.all()
     response_data = response.response_data or {}
+
+    attachments = (
+        ResponseAttachment.objects
+        .filter(response=response)
+        .select_related("question")
+    )
+    attachments_by_qid = {att.question_id: att for att in attachments}
+
     questions_with_answers = []
     for question in questions:
         if question.question_type in ['text', 'single', 'multiple']:
             answer = response_data.get(str(question.id))
+            questions_with_answers.append({'question': question, 'answer': answer})
+        elif question.question_type == 'upload':
+            att = attachments_by_qid.get(question.id)
+            is_image = bool(att and (att.content_type or "").startswith("image/"))
+            is_video = bool(att and (att.content_type or "").startswith("video/"))
             questions_with_answers.append({
                 'question': question,
-                'answer': answer
+                'answer': response_data.get(str(question.id)),
+                'attachment': att,
+                'is_image': is_image,
+                'is_video': is_video,
             })
 
     return render(request, 'surveys/survey_management/survey_review.html', {

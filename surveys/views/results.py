@@ -9,17 +9,15 @@ from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
-from ..models import Survey
+from ..models import Survey, ResponseAttachment
 from ..permissions import get_survey_access
 
 
 @login_required
 def survey_results(request, pk):
-    """Kết quả khảo sát"""
     survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
     access = get_survey_access(request.user, survey)
     if not access.can_view_results:
-        # Keep same UX as other views
         return render(request, 'errors/404.html', status=404)
 
     responses = survey.responses.all()
@@ -31,7 +29,7 @@ def survey_results(request, pk):
     for question in questions:
         question_id_str = str(question.id)
 
-        if question.question_type not in ['text', 'single', 'multiple']:
+        if question.question_type not in ['text', 'single', 'multiple', 'upload']:
             continue
 
         if question.question_type == 'text':
@@ -47,6 +45,22 @@ def survey_results(request, pk):
                 'type': 'text',
                 'answers': text_answers[:10],  # Hiển thị 10 câu trả lời đầu
                 'total': len(text_answers)
+            })
+        elif question.question_type == 'upload':
+            # Count & sample attachments
+            q_attachments = (
+                ResponseAttachment.objects
+                .filter(response__survey=survey, question=question)
+                .select_related("response")
+                .order_by("-uploaded_at")
+            )
+            total = q_attachments.count()
+            samples = list(q_attachments[:10])
+            stats.append({
+                'question': question,
+                'type': 'upload',
+                'attachments': samples,
+                'total': total,
             })
         else:
             choice_stats = []
@@ -97,6 +111,13 @@ def survey_export_csv(request, pk):
     responses = survey.responses.all().order_by('submitted_at')
     questions = survey.questions.all().order_by('order')
 
+    attachments = (
+        ResponseAttachment.objects
+        .filter(response__survey=survey)
+        .select_related("response", "question")
+    )
+    attachment_map = {(a.response_id, a.question_id): a for a in attachments}
+
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = f'attachment; filename="khao_sat_{survey.pk}_ket_qua.csv"'
     response.write("\ufeff")  # BOM for Excel compatibility
@@ -114,12 +135,18 @@ def survey_export_csv(request, pk):
         for question in questions:
             qid = str(question.id)
             answer = ''
-            if resp.response_data and qid in resp.response_data:
-                value = resp.response_data[qid]
-                if isinstance(value, list):
-                    answer = ' | '.join(str(v) for v in value)
-                else:
-                    answer = str(value)
+            if question.question_type == 'upload':
+                att = attachment_map.get((resp.id, question.id))
+                if att:
+                    # export absolute URL for convenience
+                    answer = request.build_absolute_uri(att.file.url)
+            else:
+                if resp.response_data and qid in resp.response_data:
+                    value = resp.response_data[qid]
+                    if isinstance(value, list):
+                        answer = ' | '.join(str(v) for v in value)
+                    else:
+                        answer = str(value)
             row.append(answer)
 
         writer.writerow(row)
@@ -129,7 +156,6 @@ def survey_export_csv(request, pk):
 
 @login_required
 def survey_export_excel(request, pk):
-    """Xuất kết quả khảo sát ra file Excel với định dạng đẹp"""
     survey = get_object_or_404(Survey, pk=pk, is_deleted=False)
     access = get_survey_access(request.user, survey)
     if not access.can_view_results:
@@ -138,11 +164,18 @@ def survey_export_excel(request, pk):
     responses = survey.responses.all().order_by('submitted_at')
     questions = survey.questions.all().order_by('order')
 
+    attachments = (
+        ResponseAttachment.objects
+        .filter(response__survey=survey)
+        .select_related("response", "question")
+    )
+    attachment_map = {(a.response_id, a.question_id): a for a in attachments}
+
     wb = Workbook()
     ws = wb.active
     ws.title = f"Khảo sát {survey.pk}"
 
-    header_fill = PatternFill(start_color="5B2C6F", end_color="5B2C6F", fill_type="solid")  # Màu tím
+    header_fill = PatternFill(start_color="0023ff", end_color="0023ff", fill_type="solid")  # Màu tím
     header_font = Font(bold=True, color="FFFFFF", size=12)  # Chữ trắng, đậm
     header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     border = Border(
@@ -181,12 +214,17 @@ def survey_export_excel(request, pk):
         for col_num, question in enumerate(questions, 2):
             qid = str(question.id)
             answer = ''
-            if resp.response_data and qid in resp.response_data:
-                value = resp.response_data[qid]
-                if isinstance(value, list):
-                    answer = ', '.join(str(v) for v in value)
-                else:
-                    answer = str(value)
+            if question.question_type == 'upload':
+                att = attachment_map.get((resp.id, question.id))
+                if att:
+                    answer = request.build_absolute_uri(att.file.url)
+            else:
+                if resp.response_data and qid in resp.response_data:
+                    value = resp.response_data[qid]
+                    if isinstance(value, list):
+                        answer = ', '.join(str(v) for v in value)
+                    else:
+                        answer = str(value)
 
             cell = ws.cell(row=row_num, column=col_num)
             cell.value = answer
