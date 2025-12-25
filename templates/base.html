@@ -209,10 +209,13 @@
     <!-- Messages (global).
          Note: auth pages render messages inside their forms, so we avoid double messages here. -->
     {% if messages %}
-        {% if request.resolver_match and request.resolver_match.url_name == 'login'
-              or request.resolver_match.url_name == 'register'
-              or request.resolver_match.url_name == 'password_reset'
-              or request.resolver_match.url_name == 'password_reset_confirm' %}
+        {% if request.resolver_match and request.resolver_match.url_name == 'login' %}
+            {# no-op: these pages render messages inside the form card #}
+        {% elif request.resolver_match and request.resolver_match.url_name == 'register' %}
+            {# no-op: these pages render messages inside the form card #}
+        {% elif request.resolver_match and request.resolver_match.url_name == 'password_reset' %}
+            {# no-op: these pages render messages inside the form card #}
+        {% elif request.resolver_match and request.resolver_match.url_name == 'password_reset_confirm' %}
             {# no-op: these pages render messages inside the form card #}
         {% else %}
         <div class="container">
