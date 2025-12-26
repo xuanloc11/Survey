@@ -182,7 +182,13 @@
             {% endfor %}
         </div>
         {% else %}
-        <p class="text-muted mb-3">Tổng số phản hồi: {{ stat.total }}</p>
+        <p class="text-muted mb-3">
+            Tổng số phản hồi: {{ stat.total }}
+            {% if stat.type == 'multiple' %}
+            <span class="mx-1">·</span>
+            Tổng lượt chọn: {{ stat.total_selected }}
+            {% endif %}
+        </p>
         
         <!-- Chart Container -->
         <div class="chart-container">

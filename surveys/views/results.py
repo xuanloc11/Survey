@@ -65,7 +65,9 @@ def survey_results(request, pk):
         else:
             choice_stats = []
             if question.options:
-                for idx, option_text in enumerate(question.options):
+                # First pass: count selections per option
+                counts = []
+                for option_text in question.options:
                     count = 0
                     for response in responses:
                         if response.response_data and question_id_str in response.response_data:
@@ -76,20 +78,29 @@ def survey_results(request, pk):
                             elif question.question_type == 'multiple':
                                 if isinstance(answer_value, list) and option_text in answer_value:
                                     count += 1
+                    counts.append(count)
 
-                    percentage = (count / total_responses_count * 100) if total_responses_count > 0 else 0
+                # Use the same denominator as the doughnut chart (sum of all option counts)
+                # - For single choice: equals number of answers given (may be < total responses if some skipped)
+                # - For multiple choice: equals total selections (can be > total responses)
+                percentage_base = sum(counts)
+
+                for idx, option_text in enumerate(question.options):
+                    count = counts[idx]
+                    percentage = (count / percentage_base * 100) if percentage_base > 0 else 0
                     choice_stats.append({
                         'option': option_text,
                         'index': idx,
                         'count': count,
-                        'percentage': round(percentage, 1)
+                        'percentage': round(percentage, 1),
                     })
 
             stats.append({
                 'question': question,
                 'type': question.question_type,
                 'choices': choice_stats,
-                'total': total_responses_count
+                'total': total_responses_count,
+                'total_selected': sum(cs['count'] for cs in choice_stats),
             })
 
     context = {
