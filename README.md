@@ -1,4 +1,4 @@
-# HCMUTE Survey (SurveyProject)
+# SurveyForm (SurveyProject)
 
 Hệ thống khảo sát xây dựng bằng **Python/Django**: tạo khảo sát, thêm câu hỏi/lựa chọn, thu thập phản hồi, giới hạn truy cập (mật khẩu/whitelist), giới hạn số lượt, và xuất kết quả **CSV/Excel**.
 
@@ -100,12 +100,14 @@ python manage.py runserver
 ### Email (Resend SMTP)
 
 Trong `SurveyProject/settings.py` đang dùng:
+
 - `EMAIL_HOST = smtp.resend.com`
 - `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` lấy từ `.env`
 
 ### Cloudflare Turnstile
 
 Biến môi trường:
+
 - `CLOUDFLARE_TURNSTILE_SITE_KEY`
 - `CLOUDFLARE_TURNSTILE_SECRET_KEY`
 
@@ -114,5 +116,3 @@ Nếu không cấu hình, phần captcha có thể không hoạt động đúng 
 ## Tài liệu
 
 - Báo cáo: `docs/BaoCao_HeThong_KhaoSat_HCMUTE_Survey.docx`
-
-
