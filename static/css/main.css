@@ -1,57 +1,78 @@
 /* Global layout & components (from base.html) */
 :root {
     --primary-color: #6366f1;
+    --primary-dark: #4f46e5;
     --secondary-color: #8b5cf6;
     --success-color: #10b981;
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
     --info-color: #3b82f6;
+    --bg-light: #f8fafc;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --shadow-soft: 0 12px 40px rgba(20, 20, 40, 0.04);
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #666666;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05), transparent 30%),
+                radial-gradient(circle at 90% 60%, rgba(139, 92, 246, 0.06), transparent 30%),
+                var(--bg-light);
+    color: #1e293b;
     min-height: 100vh;
 }
 
+h1, h2, h3, h4, h5, h6, .navbar-brand {
+    font-family: 'Outfit', sans-serif;
+}
+
 .navbar {
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-    position: relative;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+    position: sticky;
+    top: 0;
     z-index: 1050;
+    padding: 0.75rem 0;
 }
 
 .dropdown-menu {
     z-index: 1100;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
 }
-
 
 .navbar-brand {
     font-weight: 700;
     color: var(--primary-color) !important;
     font-size: 1.5rem;
+    letter-spacing: -0.02em;
 }
 
 .main-container {
     background: white;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 24px;
+    box-shadow: var(--shadow-soft);
     margin: 2rem auto;
-    padding: 2rem;
+    padding: 2.5rem;
     min-height: calc(100vh - 200px);
+    border: 1px solid rgba(255,255,255,0.8);
 }
 
 /* ===== Landing page styling ===== */
 .landing-body {
-    background: radial-gradient(circle at 20% 20%, rgba(99,102,241,0.15), transparent 35%),
-                radial-gradient(circle at 80% 0%, rgba(139,92,246,0.18), transparent 32%),
-                #f5f7fb;
+    background: radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.12), transparent 40%),
+                radial-gradient(circle at 85% 20%, rgba(139, 92, 246, 0.12), transparent 40%),
+                #f8fafc;
 }
 
 .landing-body .main-container {
     background: transparent;
     box-shadow: none;
+    border: none;
     padding: 0;
     margin: 1.5rem auto;
 }
@@ -145,17 +166,18 @@ body {
 }
 
 .feature-card {
-    background: #f8f9ff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 1.25rem;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 2.5rem 1.5rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.03);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .feature-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 32px rgba(99, 102, 241, 0.15);
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.12);
+    border-color: #c7d2fe;
 }
 
 .icon-circle {
@@ -220,16 +242,18 @@ body {
 }
 
 .card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.03);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     margin-bottom: 1.5rem;
 }
 
 .card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-6px);
+    box-shadow: 0 15px 35px rgba(99, 102, 241, 0.12);
 }
 
 .card-header {
@@ -243,15 +267,17 @@ body {
 .btn-primary {
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     border: none;
-    border-radius: 10px;
-    padding: 0.6rem 1.5rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    border-radius: 12px;
+    padding: 0.65rem 1.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
 }
 
 .btn-success {
@@ -446,15 +472,18 @@ footer {
 
 /* Auth pages (login/register shared) */
 .auth-container {
-    max-width: 500px;
-    margin: 3rem auto;
+    max-width: 480px;
+    margin: 4rem auto;
 }
 
 .auth-card {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-    padding: 2.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.05);
+    padding: 3rem 2.5rem;
 }
 
 .auth-header {
@@ -609,10 +638,11 @@ footer {
 
 .dashboard-hero-card {
     background: white;
-    border-radius: 18px;
-    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.16);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
     overflow: hidden;
     width: 100%;
+    border: 1px solid rgba(0,0,0,0.03);
 }
 
 .dashboard-hero-card-header {
@@ -674,18 +704,18 @@ footer {
 }
 
 .survey-card {
-    border-radius: 14px;
-    border: 1px solid #e5e7eb;
-    padding: 1rem 1.25rem;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    padding: 1.25rem 1.5rem;
     background: #ffffff;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(15, 23, 42, 0.02);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .survey-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
-    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.1);
+    border-color: #c7d2fe;
 }
 
 .survey-card-header {
@@ -693,13 +723,14 @@ footer {
     justify-content: space-between;
     align-items: flex-start;
     gap: 0.75rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .survey-title {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
+    font-family: 'Outfit', sans-serif;
     font-weight: 600;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.25rem;
 }
 
 .survey-desc {
