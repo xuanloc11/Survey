@@ -31,15 +31,15 @@ def register_view(request):
                 reverse('surveys:activate', kwargs={'uidb64': uidb64, 'token': token})
             )
 
-            subject = 'Xác nhận đăng ký tài khoản HCMUTE Survey'
+            subject = 'Xác nhận đăng ký tài khoản Survey'
             message = (
                 f'Xin chào {user.username},\n\n'
-                'Cảm ơn bạn đã đăng ký tài khoản trên HCMUTE Survey.\n'
+                'Cảm ơn bạn đã đăng ký tài khoản trên Survey.\n'
                 'Vui lòng nhấp vào liên kết dưới đây để kích hoạt tài khoản của bạn:\n\n'
                 f'{activation_link}\n\n'
                 'Nếu bạn không thực hiện đăng ký này, hãy bỏ qua email.\n\n'
                 'Trân trọng,\n'
-                'HCMUTE Survey'
+                'SurveyForm'
             )
 
             try:
@@ -134,15 +134,15 @@ def password_reset_request(request):
                     reverse('surveys:password_reset_confirm', kwargs={'uidb64': uidb64, 'token': token})
                 )
 
-                subject = 'Đặt lại mật khẩu tài khoản hệ thống khảo sát HCMUTE'
+                subject = 'Đặt lại mật khẩu tài khoản hệ thống khảo sát SurveyForm'
                 message = (
                     f'Xin chào {user.username},\n\n'
-                    'Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản HCMUTE Survey.\n'
+                    'Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản SurveyForm.\n'
                     'Vui lòng nhấp vào liên kết dưới đây để đặt mật khẩu mới:\n\n'
                     f'{reset_link}\n\n'
                     'Nếu bạn không yêu cầu, hãy bỏ qua email này.\n\n'
                     'Trân trọng,\n'
-                    'Đội ngũ HCMUTE Survey'
+                    'Đội ngũ SurveyForm'
                 )
 
                 try:

@@ -70,7 +70,7 @@ from django.urls import path
 from django.shortcuts import render
 
 class CustomAdminSite(AdminSite):
-    site_header = "HCMUTE Survey Administration"
+    site_header = "SurveyForm Administration"
     site_title = "Survey Admin"
     index_title = "Dashboard"
     
