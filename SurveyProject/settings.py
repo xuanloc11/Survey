@@ -168,7 +168,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-DEFAULT_FROM_EMAIL = 'HCMUTE Survey <support@survey.xloc.id.vn>'
+DEFAULT_FROM_EMAIL = 'SurveyForm <support@survey.xloc.id.vn>'
 
 SESSION_COOKIE_NAME = 'survey_sessionid'
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 ngày
