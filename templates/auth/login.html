@@ -56,6 +56,12 @@
                     <a href="{% url 'surveys:password_reset' %}">Quên mật khẩu?</a>
                 </div>
             </div>
+
+            {% if site_key %}
+            <div class="form-group d-flex justify-content-center my-3">
+                <div class="cf-turnstile" data-sitekey="{{ site_key }}" data-theme="light"></div>
+            </div>
+            {% endif %}
             
             <button type="submit" class="btn btn-login">
                 <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
@@ -71,5 +77,11 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 {% endblock %}
 

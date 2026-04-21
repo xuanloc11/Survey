@@ -8,8 +8,25 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.urls import reverse
+import requests
 
 from ..forms import UserRegisterForm, UserProfileForm
+
+def verify_turnstile(request):
+    token = request.POST.get('cf-turnstile-response')
+    secret_key = getattr(settings, 'CLOUDFLARE_TURNSTILE_SECRET_KEY', None)
+    if not secret_key:
+        return True
+    if not token:
+        return False
+    try:
+        r = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data={
+            'secret': secret_key,
+            'response': token
+        }, timeout=5)
+        return r.json().get('success', False)
+    except Exception:
+        return False
 
 User = get_user_model()
 
@@ -21,6 +38,13 @@ def register_view(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
+            if getattr(settings, 'CLOUDFLARE_TURNSTILE_SITE_KEY', None) and not verify_turnstile(request):
+                messages.error(request, 'Xác minh Captcha thất bại. Vui lòng thử lại.')
+                return render(request, 'auth/register.html', {
+                    'form': form,
+                    'site_key': getattr(settings, 'CLOUDFLARE_TURNSTILE_SITE_KEY', '')
+                })
+
             user: User = form.save(commit=False)
             user.is_active = False
             user.save()
@@ -64,7 +88,10 @@ def register_view(request):
     else:
         form = UserRegisterForm()
 
-    return render(request, 'auth/register.html', {'form': form})
+    return render(request, 'auth/register.html', {
+        'form': form,
+        'site_key': getattr(settings, 'CLOUDFLARE_TURNSTILE_SITE_KEY', '')
+    })
 
 
 def activate_account(request, uidb64, token):
@@ -93,6 +120,13 @@ def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+        
+        if getattr(settings, 'CLOUDFLARE_TURNSTILE_SITE_KEY', None) and not verify_turnstile(request):
+            messages.error(request, 'Xác minh Captcha thất bại. Vui lòng thử lại.')
+            return render(request, 'auth/login.html', {
+                'site_key': getattr(settings, 'CLOUDFLARE_TURNSTILE_SITE_KEY', '')
+            })
+
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
@@ -104,7 +138,9 @@ def login_view(request):
         else:
             messages.error(request, 'Tên đăng nhập hoặc mật khẩu không đúng!')
 
-    return render(request, 'auth/login.html')
+    return render(request, 'auth/login.html', {
+        'site_key': getattr(settings, 'CLOUDFLARE_TURNSTILE_SITE_KEY', '')
+    })
 
 
 def logout_view(request):
