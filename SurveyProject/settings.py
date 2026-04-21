@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os
+import dj_database_url
 from dotenv import load_dotenv
 from pathlib import Path
 from django.core.mail import send_mail
@@ -89,6 +90,13 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+
+if 'DATABASE_URL' in os.environ:
+    DATABASES['default'] = dj_database_url.config(
+        conn_max_age=600,
+        conn_health_checks=True,
+        ssl_require=True
+    )
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
